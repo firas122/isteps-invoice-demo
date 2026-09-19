@@ -3,7 +3,7 @@
 window.ISTEPS_DICT = {
   fr: {
     'cur': 'DT',
-    'meta.title': 'iSteps — Extraction intelligente de factures',
+    'meta.title': 'iSteps Factures — Extraction intelligente de factures',
     'meta.desc': 'Transformez vos factures PDF et images en données structurées, vérifiées et exportables. Conçu pour les cabinets comptables tunisiens.',
     'brand.suffix': '/ Factures',
 
@@ -73,7 +73,7 @@ window.ISTEPS_DICT = {
     'footer.tagline': 'Extraction documentaire',
 
     /* dashboard */
-    'dash.meta.title': 'iSteps — Tableau de bord',
+    'dash.meta.title': 'iSteps Factures — Tableau de bord',
     'dash.meta.desc': 'Analyse des dépenses issues des factures extraites : fournisseurs, TVA, volumes et anomalies.',
     'dash.tag': 'Analyse des dépenses', 'dash.title': 'Tableau de bord',
     'dash.sub': 'Chaque facture extraite alimente automatiquement ces indicateurs : fournisseurs, TVA, volumes et contrôles de cohérence.',
@@ -112,7 +112,7 @@ window.ISTEPS_DICT = {
 
   en: {
     'cur': 'TND',
-    'meta.title': 'iSteps — Intelligent invoice extraction',
+    'meta.title': 'iSteps Factures — Intelligent invoice extraction',
     'meta.desc': 'Turn PDF and image invoices into structured, verified, exportable data. Built for Tunisian accounting firms.',
     'brand.suffix': '/ Invoices',
 
@@ -181,7 +181,7 @@ window.ISTEPS_DICT = {
     'form.submit': 'Request a demo', 'form.mailSubject': 'Demo request — iSteps',
     'footer.tagline': 'Document extraction',
 
-    'dash.meta.title': 'iSteps — Dashboard',
+    'dash.meta.title': 'iSteps Factures — Dashboard',
     'dash.meta.desc': 'Spend analytics from extracted invoices: suppliers, VAT, volumes and anomalies.',
     'dash.tag': 'Spend analytics', 'dash.title': 'Dashboard',
     'dash.sub': 'Every extracted invoice feeds these indicators automatically: suppliers, VAT, volumes and consistency checks.',
@@ -220,7 +220,7 @@ window.ISTEPS_DICT = {
 
   ar: {
     'cur': 'د.ت',
-    'meta.title': 'iSteps — الاستخراج الذكي للفواتير',
+    'meta.title': 'iSteps Factures — الاستخراج الذكي للفواتير',
     'meta.desc': 'حوّل فواتير PDF والصور إلى بيانات منظّمة ومدقّقة وقابلة للتصدير. مصمَّم لمكاتب المحاسبة في تونس.',
     'brand.suffix': '/ الفواتير',
 
@@ -289,7 +289,7 @@ window.ISTEPS_DICT = {
     'form.submit': 'اطلب عرضاً توضيحياً', 'form.mailSubject': 'طلب عرض توضيحي — iSteps',
     'footer.tagline': 'استخراج المستندات',
 
-    'dash.meta.title': 'iSteps — لوحة القيادة',
+    'dash.meta.title': 'iSteps Factures — لوحة القيادة',
     'dash.meta.desc': 'تحليل المصاريف انطلاقاً من الفواتير المستخرَجة: المورّدون، الأداء، الأحجام والفوارق.',
     'dash.tag': 'تحليل المصاريف', 'dash.title': 'لوحة القيادة',
     'dash.sub': 'كلّ فاتورة مستخرَجة تغذّي هذه المؤشّرات تلقائياً: المورّدون، الأداء على القيمة المضافة، الأحجام والتحقّق من التطابق.',

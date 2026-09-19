@@ -1,4 +1,4 @@
-# iSteps — Invoice Extraction Demo
+# iSteps Factures — Invoice Extraction Demo
 
 Scaffold for the live pilot demo: upload a Tunisian/French-format invoice
 (PDF, PNG, JPG), get structured fields back via Gemini vision, review in a
