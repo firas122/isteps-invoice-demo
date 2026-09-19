@@ -131,7 +131,7 @@ async def export_csv(payload: dict):
 
     header_fields = [
         "fournisseur", "date", "numero_facture",
-        "montant_ht", "montant_tva", "montant_ttc",
+        "montant_ht", "montant_tva", "montant_timbre", "montant_ttc",
     ]
     writer.writerow(header_fields)
     writer.writerow([payload.get(f, "") for f in header_fields])

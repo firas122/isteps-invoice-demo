@@ -111,7 +111,7 @@ main{position:relative;z-index:1;max-width:var(--maxw);margin:0 auto;padding:cal
 @keyframes growX{from{transform:scaleX(0)}}
 .bar-value{font-size:.8rem;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}
 
-.figures{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--line);border:1px solid var(--line);border-radius:12px;overflow:hidden;margin-bottom:18px}
+.figures{display:grid;grid-template-columns:repeat(auto-fit,minmax(112px,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:12px;overflow:hidden;margin-bottom:18px}
 .figure{background:var(--card);padding:12px 14px}
 .figure .k{font-size:.72rem;color:var(--axis-text);font-weight:600;letter-spacing:.06em;text-transform:uppercase}
 .figure .v{font-size:1.05rem;font-weight:600;margin-top:4px;white-space:nowrap}
@@ -158,7 +158,6 @@ th.num,td.num{text-align:end;font-variant-numeric:tabular-nums}
   .header-inner{padding:0 20px}
   main{padding:calc(var(--header-h) + 28px) 20px 64px}
   .updated{margin-inline-start:0;width:100%}
-  .figures{grid-template-columns:1fr}
 }
 @media (max-width:460px){
   .kpis{grid-template-columns:1fr}
@@ -291,6 +290,7 @@ th.num,td.num{text-align:end;font-variant-numeric:tabular-nums}
       <div class="figures">
         <div class="figure"><div class="k" data-i18n="vat.fig.ht">Total HT</div><div class="v" id="fHT">—</div></div>
         <div class="figure"><div class="k" data-i18n="vat.fig.tva">Total TVA</div><div class="v" id="fTVA">—</div></div>
+        <div class="figure"><div class="k" data-i18n="vat.fig.timbre">Total Timbre</div><div class="v" id="fTimbre">—</div></div>
         <div class="figure"><div class="k" data-i18n="vat.fig.ttc">Total TTC</div><div class="v" id="fTTC">—</div></div>
       </div>
       <div class="chart-view">
@@ -675,6 +675,7 @@ function renderSuppliers(d){
 function renderVat(d){
   $('fHT').textContent = F.money(d.kpis.total_ht);
   $('fTVA').textContent = F.money(d.kpis.total_tva);
+  $('fTimbre').textContent = F.money(d.kpis.total_timbre);
   $('fTTC').textContent = F.money(d.kpis.total_ttc);
   barList($('vatBars'), d.vat_by_rate, {
     animate: state.animate,
@@ -727,11 +728,14 @@ function renderAnomalies(d){
   }
   dataTable(body,
     [{ label:t('col.status') }, { label:t('col.supplier') }, { label:t('col.number') }, { label:t('col.date') },
-     { label:t('col.ht'), num:true }, { label:t('col.tva'), num:true }, { label:t('col.ttc'), num:true }, { label:t('col.gap'), num:true }],
+     { label:t('col.ht'), num:true }, { label:t('col.tva'), num:true }, { label:t('col.timbre'), num:true },
+     { label:t('col.ttc'), num:true }, { label:t('col.gap'), num:true }],
     d.anomalies.map(a => [
       statusEl('warning', t('anom.status'), 'td-status'),
       a.fournisseur || '—', a.numero_facture || '—', F.date(a.date),
-      F.money3(a.montant_ht), F.money3(a.montant_tva), F.money3(a.montant_ttc),
+      F.money3(a.montant_ht), F.money3(a.montant_tva),
+      a.montant_timbre != null ? F.money3(a.montant_timbre) : '—',
+      F.money3(a.montant_ttc),
       `${a.ecart > 0 ? '+' : ''}${F.money3(a.ecart)}`,
     ]));
 }

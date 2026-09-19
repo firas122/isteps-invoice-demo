@@ -51,7 +51,9 @@ def build(months=18, seed=42, today=None):
                     tva = round(ht * share * 0.07 + ht * (1 - share) * rate / 100, 3)
                 else:
                     tva = round(ht * rate / 100, 3)
-                ttc = round(ht + tva, 3)
+                # most Tunisian invoices carry the fixed fiscal stamp duty; some are exempt
+                timbre = 1.0 if rng.random() < 0.9 else None
+                ttc = round(ht + tva + (timbre or 0), 3)
                 if rng.random() < 0.04:
                     ttc = round(ttc + rng.choice([-1, 1]) * rng.uniform(1, 40), 3)
                 invoices.append({
@@ -60,6 +62,7 @@ def build(months=18, seed=42, today=None):
                     "numero_facture": f"FA-{d.year}-{counter}",
                     "montant_ht": ht,
                     "montant_tva": tva,
+                    "montant_timbre": timbre,
                     "montant_ttc": ttc,
                     "confiance": rng.choices(["haute", "moyenne", "basse"], [80, 16, 4])[0],
                     "lignes": [],

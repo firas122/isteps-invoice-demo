@@ -68,7 +68,7 @@ http://127.0.0.1:8000/dashboard to see:
 - **Top suppliers** — amount, share of spend, invoice count
 - **VAT** — HT / TVA / TTC totals and TVA by rate (0 / 7 / 13 / 19 %, or "taux mixte" for blended invoices)
 - **Invoice volume** per month
-- **Anomalies** — invoices where HT + TVA ≠ TTC (tolerance 0.020 DT)
+- **Anomalies** — invoices where HT + TVA + Timbre (fiscal stamp duty) ≠ TTC (tolerance 0.020 DT)
 
 Period filter: 3 / 6 / 12 months or all. Every chart has a table view.
 Charts are plain SVG/HTML — no CDN, so the dashboard works offline in a meeting.

@@ -246,7 +246,7 @@ input[type=file]{display:none}
 .badge.moyenne{background:var(--warn-bg);color:var(--warn-text);border:1px solid var(--warn-line)}
 .badge.basse{background:var(--err-bg);color:var(--err-text);border:1px solid var(--err-line)}
 
-.amounts{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:12px}
+.amounts{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:12px}
 .amt{position:relative;padding:18px;border-radius:var(--r);background:var(--surface);border:1px solid var(--line);overflow:hidden}
 .amt.hero-amt{background:linear-gradient(150deg,rgba(var(--accent-rgb),.12),rgba(var(--accent-2-rgb),.05));border-color:rgba(var(--accent-rgb),.28)}
 .amt .k{font-size:.715rem;text-transform:uppercase;letter-spacing:.11em;color:var(--faint);font-weight:600}
@@ -407,7 +407,7 @@ footer{position:relative;z-index:1;border-top:1px solid var(--line);padding:38px
 @media (max-width:920px){
   .addons{grid-template-columns:1fr}
   .contact-grid{grid-template-columns:1fr;gap:38px}
-  .amounts{grid-template-columns:1fr}
+  .amounts{grid-template-columns:repeat(2,1fr)}
   .fields{grid-template-columns:repeat(2,1fr)}
 }
 @media (max-width:860px){
@@ -557,6 +557,7 @@ footer{position:relative;z-index:1;border-top:1px solid var(--line);padding:38px
             <div class="amounts">
               <div class="amt"><div class="k" data-i18n="amt.ht">Montant HT</div><div class="v" id="vHT">—</div></div>
               <div class="amt"><div class="k" data-i18n="amt.tva">TVA</div><div class="v" id="vTVA">—</div></div>
+              <div class="amt"><div class="k" data-i18n="amt.timbre">Timbre fiscal</div><div class="v" id="vTimbre">—</div></div>
               <div class="amt hero-amt"><div class="k" data-i18n="amt.ttc">Total TTC</div><div class="v" id="vTTC">—</div></div>
             </div>
 
@@ -991,14 +992,17 @@ function render(data, file){
   document.getElementById('confidence').innerHTML = ['haute','moyenne','basse'].includes(conf)
     ? `<span class="badge ${conf}"><i></i>${esc(t('conf.' + conf))}</span>` : '';
 
-  document.getElementById('vHT').innerHTML  = money(data.montant_ht);
-  document.getElementById('vTVA').innerHTML = money(data.montant_tva);
-  document.getElementById('vTTC').innerHTML = money(data.montant_ttc);
+  document.getElementById('vHT').innerHTML     = money(data.montant_ht);
+  document.getElementById('vTVA').innerHTML    = money(data.montant_tva);
+  document.getElementById('vTimbre').innerHTML = money(data.montant_timbre);
+  document.getElementById('vTTC').innerHTML    = money(data.montant_ttc);
 
-  const ht = num(data.montant_ht), tva = num(data.montant_tva), ttc = num(data.montant_ttc);
+  const ht = num(data.montant_ht), tva = num(data.montant_tva), timbre = num(data.montant_timbre), ttc = num(data.montant_ttc);
   const check = document.getElementById('check');
   if (ht !== null && tva !== null && ttc !== null) {
-    const gap = Math.abs(ht + tva - ttc);
+    // timbre is often absent (exempt invoices, or missed by the model) — treat as 0 rather
+    // than skipping the check, since HT/TVA/TTC are the fields that must always be present
+    const gap = Math.abs(ht + tva + (timbre ?? 0) - ttc);
     const ok = gap < 0.02;
     check.hidden = false;
     check.className = `check ${ok ? 'ok' : 'warn'}`;

@@ -29,6 +29,7 @@ CREATE TABLE IF NOT EXISTS invoices (
     numero_facture TEXT,
     montant_ht     REAL,
     montant_tva    REAL,
+    montant_timbre REAL,
     montant_ttc    REAL,
     confiance      TEXT,
     lignes_json    TEXT,
@@ -47,6 +48,10 @@ def _connect():
 def init_db():
     with _connect() as conn:
         conn.executescript(SCHEMA)
+        # migrate DBs created before the "timbre fiscal" column existed
+        cols = {row["name"] for row in conn.execute("PRAGMA table_info(invoices)")}
+        if "montant_timbre" not in cols:
+            conn.execute("ALTER TABLE invoices ADD COLUMN montant_timbre REAL")
 
 
 def to_number(value):
@@ -102,9 +107,9 @@ def save_invoice(data, filename=None, source="upload", created_at=None):
     with _connect() as conn:
         cur = conn.execute(
             """INSERT INTO invoices (created_at, source, filename, fournisseur, supplier_key,
-                   invoice_date, numero_facture, montant_ht, montant_tva, montant_ttc,
+                   invoice_date, numero_facture, montant_ht, montant_tva, montant_timbre, montant_ttc,
                    confiance, lignes_json, raw_json)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
                 created_at or datetime.now().isoformat(timespec="seconds"),
                 source,
@@ -115,6 +120,7 @@ def save_invoice(data, filename=None, source="upload", created_at=None):
                 data.get("numero_facture"),
                 to_number(data.get("montant_ht")),
                 to_number(data.get("montant_tva")),
+                to_number(data.get("montant_timbre")),
                 to_number(data.get("montant_ttc")),
                 data.get("confiance"),
                 json.dumps(lignes, ensure_ascii=False),
@@ -159,16 +165,20 @@ def _totals(rows):
         "count": len(rows),
         "total_ht": round(sum(r["montant_ht"] or 0 for r in rows), 3),
         "total_tva": round(sum(r["montant_tva"] or 0 for r in rows), 3),
+        "total_timbre": round(sum(r["montant_timbre"] or 0 for r in rows), 3),
         "total_ttc": round(ttc, 3),
         "avg_ttc": round(ttc / len(rows), 3) if rows else 0,
     }
 
 
 def _is_anomaly(r):
+    # timbre is often absent (exempt invoices, or the model missed it) — treat as 0 rather
+    # than refusing to check, since HT/TVA/TTC are the fields that must always be present
     ht, tva, ttc = r["montant_ht"], r["montant_tva"], r["montant_ttc"]
     if ht is None or tva is None or ttc is None:
         return False
-    return abs(ht + tva - ttc) > ANOMALY_TOLERANCE
+    timbre = r["montant_timbre"] or 0
+    return abs(ht + tva + timbre - ttc) > ANOMALY_TOLERANCE
 
 
 def get_analytics(period="12m", today=None):
@@ -226,6 +236,7 @@ def get_analytics(period="12m", today=None):
             v["count"] += 1
 
         if _is_anomaly(r):
+            timbre = r["montant_timbre"] or 0
             anomalies.append({
                 "id": r["id"],
                 "fournisseur": r["fournisseur"],
@@ -233,8 +244,9 @@ def get_analytics(period="12m", today=None):
                 "date": r["eff_date"],
                 "montant_ht": r["montant_ht"],
                 "montant_tva": r["montant_tva"],
+                "montant_timbre": r["montant_timbre"],
                 "montant_ttc": r["montant_ttc"],
-                "ecart": round(r["montant_ht"] + r["montant_tva"] - r["montant_ttc"], 3),
+                "ecart": round(r["montant_ht"] + r["montant_tva"] + timbre - r["montant_ttc"], 3),
             })
 
     # labels are localised in the browser: rates are numbers, blended invoices are "mixed"

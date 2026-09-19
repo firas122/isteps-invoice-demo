@@ -44,6 +44,7 @@ sans balises markdown, selon exactement ce schéma :
   "numero_facture": "string, numéro de facture",
   "montant_ht": "number, montant hors taxes",
   "montant_tva": "number, montant de la TVA",
+  "montant_timbre": "number ou null, droit de timbre fiscal tunisien (souvent un montant fixe, ex: 1.000 DT) ; null si absent de la facture",
   "montant_ttc": "number, montant total TTC",
   "lignes": [
     {
