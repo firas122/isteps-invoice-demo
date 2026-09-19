@@ -1,0 +1,1087 @@
+<!DOCTYPE html>
+<html lang="fr" dir="ltr" data-theme="dark" data-i18n-title="meta.title">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>iSteps — Extraction intelligente de factures</title>
+<meta name="description" content="Transformez vos factures PDF et images en données structurées, vérifiées et exportables. Conçu pour les cabinets comptables tunisiens." data-i18n-attr="content:meta.desc">
+<script src="/static/prefs.js"></script>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%2306080b'/%3E%3Cpath d='M9 22V10h7a4 4 0 0 1 0 8h-7' stroke='%232fe0a0' stroke-width='2.4' fill='none' stroke-linecap='round'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/theme.css">
+<style>
+/* ============================================================
+   AMBIENT BACKGROUND
+   ============================================================ */
+/* decoration scrolls with the page (absolute, not fixed): fixed full-screen layers halved scroll fps */
+.ambient{position:absolute;top:0;left:0;right:0;height:1400px;z-index:0;pointer-events:none;overflow:hidden;contain:strict}
+.orb{position:absolute;border-radius:50%}
+.orb-1{width:900px;height:900px;top:-420px;left:-300px;background:radial-gradient(circle,var(--orb-1),transparent 70%)}
+.orb-2{width:800px;height:800px;top:-80px;right:-340px;background:radial-gradient(circle,var(--orb-2),transparent 70%)}
+.grid-overlay{
+  position:absolute;top:0;left:0;right:0;height:1400px;z-index:0;pointer-events:none;
+  background-image:linear-gradient(var(--grid-line) 1px,transparent 1px),linear-gradient(90deg,var(--grid-line) 1px,transparent 1px);
+  background-size:70px 70px;
+  mask-image:radial-gradient(ellipse 85% 65% at 50% 0%,#000 25%,transparent 78%);
+  -webkit-mask-image:radial-gradient(ellipse 85% 65% at 50% 0%,#000 25%,transparent 78%);
+}
+.vignette{
+  position:absolute;top:0;left:0;right:0;height:1400px;z-index:0;pointer-events:none;
+  background:radial-gradient(ellipse 100% 70% at 50% -10%,transparent 40%,rgba(var(--bg-rgb),.85) 100%);
+}
+.progress{box-shadow:0 0 14px rgba(var(--accent-rgb),.5)}
+
+/* ============================================================
+   HEADER — rises from below + gradient scrim
+   ============================================================ */
+.site-header{
+  position:fixed;top:0;left:0;right:0;z-index:100;height:var(--header-h);
+  opacity:0;transform:translateY(18px);animation:headerRise 1s var(--ease) .15s forwards;
+}
+@keyframes headerRise{to{opacity:1;transform:translateY(0)}}
+.site-header::before{content:"";position:absolute;inset:0;background:var(--header-bg);opacity:0;transition:opacity .5s var(--ease)}
+.site-header.scrolled::before{opacity:1}
+/* content dissolves under the bar instead of hard-cutting */
+.site-header::after{
+  content:"";position:absolute;left:0;right:0;top:100%;height:70px;pointer-events:none;
+  background:linear-gradient(to bottom,rgba(var(--bg-rgb),.72),rgba(var(--bg-rgb),0));
+  opacity:0;transition:opacity .5s var(--ease);
+}
+.site-header.scrolled::after{opacity:1}
+.header-line{
+  position:absolute;left:0;right:0;bottom:0;height:1px;
+  background:linear-gradient(90deg,transparent,var(--line-2) 18%,var(--line-2) 82%,transparent);
+  opacity:0;transition:opacity .5s var(--ease);
+}
+.site-header.scrolled .header-line{opacity:1}
+.header-inner{
+  position:relative;height:100%;max-width:var(--maxw);margin:0 auto;padding:0 28px;
+  display:flex;align-items:center;justify-content:space-between;gap:20px;
+}
+.brand{display:flex;align-items:center;gap:10px;font-weight:600;letter-spacing:-.02em;font-size:1.02rem;flex:none;white-space:nowrap}
+.brand-mark{
+  width:30px;height:30px;border-radius:9px;display:grid;place-items:center;flex:none;
+  background:var(--grad);color:var(--on-accent);font-weight:700;font-size:.92rem;
+  box-shadow:0 4px 18px rgba(var(--accent-rgb),.28);
+}
+.brand em{font-style:normal;color:var(--muted);font-weight:400}
+
+.nav{position:relative;display:flex;align-items:center;gap:2px}
+.nav a{
+  position:relative;z-index:2;padding:8px 14px;border-radius:99px;white-space:nowrap;
+  font-size:.885rem;font-weight:500;color:var(--muted);transition:color .3s var(--ease);
+  opacity:0;transform:translateY(10px);animation:navRise .7s var(--ease) forwards;
+}
+.nav a:nth-child(2){animation-delay:.42s}
+.nav a:nth-child(3){animation-delay:.50s}
+.nav a:nth-child(4){animation-delay:.58s}
+.nav a:nth-child(5){animation-delay:.66s}
+.nav a:nth-child(6){animation-delay:.74s}
+@keyframes navRise{to{opacity:1;transform:translateY(0)}}
+.nav a:hover,.nav a.active{color:var(--text)}
+.nav-pill{
+  position:absolute;z-index:1;top:50%;left:0;height:34px;width:0;
+  transform:translateY(-50%);border-radius:99px;background:var(--surface-2);border:1px solid var(--line);
+  opacity:0;transition:transform .45s var(--ease),width .45s var(--ease),opacity .3s var(--ease);
+}
+.nav-pill.on{opacity:1}
+.header-actions{display:flex;align-items:center;gap:8px}
+
+.nav-toggle{
+  display:none;width:36px;height:36px;border-radius:11px;flex:none;
+  background:var(--surface);border:1px solid var(--line);cursor:pointer;place-items:center;
+}
+.nav-toggle span{display:block;width:16px;height:1.5px;background:var(--text);border-radius:2px;transition:.35s var(--ease)}
+.nav-toggle span+span{margin-top:4px}
+.nav-toggle.open span:first-child{transform:translateY(2.75px) rotate(45deg)}
+.nav-toggle.open span:last-child{transform:translateY(-2.75px) rotate(-45deg)}
+
+.mobile-menu{
+  position:fixed;top:var(--header-h);left:0;right:0;z-index:99;
+  background:var(--menu-bg);border-bottom:1px solid var(--line);padding:10px 24px 22px;
+  display:none;flex-direction:column;visibility:hidden;
+  clip-path:inset(0 0 100% 0);transition:clip-path .45s var(--ease),visibility 0s .45s;
+}
+.mobile-menu.open{clip-path:inset(0 0 0 0);visibility:visible;transition:clip-path .45s var(--ease)}
+.mobile-menu a{padding:13px 4px;font-size:.96rem;color:var(--muted);border-bottom:1px solid var(--line)}
+.mobile-menu a:last-of-type{border-bottom:none}
+
+/* ============================================================
+   LAYOUT
+   ============================================================ */
+main{position:relative;z-index:1}
+.wrap{max-width:var(--maxw);margin:0 auto;padding:0 28px}
+section{scroll-margin-top:calc(var(--header-h) + 22px)}
+
+.eyebrow{
+  display:inline-flex;align-items:center;gap:9px;padding-block:6px;padding-inline:8px 14px;border-radius:99px;
+  background:var(--surface);border:1px solid var(--line);
+  font-size:.775rem;font-weight:500;color:var(--muted);letter-spacing:.01em;
+}
+.eyebrow .dot{width:6px;height:6px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 0 rgba(var(--accent-rgb),.6);animation:pulse 2.4s infinite}
+@keyframes pulse{70%{box-shadow:0 0 0 9px rgba(var(--accent-rgb),0)}100%{box-shadow:0 0 0 0 rgba(var(--accent-rgb),0)}}
+
+.section-head{max-width:640px;margin-bottom:54px}
+.section-head .tag{
+  font-size:.75rem;font-weight:600;letter-spacing:.14em;text-transform:uppercase;
+  background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent;
+}
+.section-head h2{font-size:clamp(1.85rem,4vw,2.65rem);margin:14px 0 16px}
+.section-head p{color:var(--muted);font-size:1.03rem}
+
+/* ============================================================
+   HERO
+   ============================================================ */
+.hero{padding:calc(var(--header-h) + 96px) 0 110px;text-align:center}
+.hero h1{font-size:clamp(2.35rem,6.2vw,4.3rem);font-weight:650;margin:26px auto 22px;max-width:16ch;letter-spacing:-.04em}
+:root[lang="ar"] .hero h1{max-width:18ch;font-weight:700}
+.hero-sub{max-width:58ch;margin:0 auto;color:var(--muted);font-size:clamp(1rem,2vw,1.135rem)}
+.hero-cta{display:flex;gap:13px;justify-content:center;flex-wrap:wrap;margin-top:38px}
+.hero-note{margin-top:18px;font-size:.81rem;color:var(--faint)}
+
+.stats{
+  display:grid;grid-template-columns:repeat(3,1fr);gap:1px;max-width:720px;margin:74px auto 0;
+  background:var(--line);border:1px solid var(--line);border-radius:var(--r-lg);overflow:hidden;
+}
+.stat{background:rgba(var(--card-rgb),.82);padding:26px 18px;text-align:center}
+.stat .v{font-size:clamp(1.6rem,3.4vw,2.1rem);font-weight:650;letter-spacing:-.03em;font-variant-numeric:tabular-nums}
+.stat .l{font-size:.775rem;color:var(--faint);margin-top:5px;letter-spacing:.03em}
+
+/* ============================================================
+   DEMO WORKSPACE
+   ============================================================ */
+.demo{padding:40px 0 110px}
+.workspace{
+  position:relative;border-radius:var(--r-xl);overflow:hidden;
+  background:var(--card);border:1px solid var(--line);box-shadow:var(--shadow-lg);
+}
+.workspace::before{
+  content:"";position:absolute;top:0;left:12%;right:12%;height:1px;
+  background:linear-gradient(90deg,transparent,rgba(var(--accent-rgb),.6),transparent);
+}
+.ws-bar{display:flex;align-items:center;gap:13px;padding:14px 20px;border-bottom:1px solid var(--line);background:var(--surface)}
+.ws-dots{display:flex;gap:6px}
+.ws-dots i{width:9px;height:9px;border-radius:50%;background:var(--surface-3)}
+.ws-title{font-size:.8rem;color:var(--faint);letter-spacing:.02em}
+.ws-live{
+  margin-inline-start:auto;display:inline-flex;align-items:center;gap:7px;
+  font-size:.72rem;color:var(--ok-text);font-weight:550;
+  padding:4px 11px;border-radius:99px;background:var(--ok-bg);border:1px solid var(--ok-line);
+}
+.ws-live i{width:5px;height:5px;border-radius:50%;background:var(--accent);animation:blink 1.8s infinite}
+@keyframes blink{50%{opacity:.25}}
+.ws-body{padding:30px}
+
+#dropzone{
+  position:relative;border-radius:var(--r-lg);padding:56px 28px;text-align:center;cursor:pointer;
+  background:var(--surface);transition:background .35s var(--ease),transform .35s var(--ease);overflow:hidden;
+}
+#dropzone::before{
+  content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;
+  border:1.5px dashed var(--line-2);transition:border-color .35s var(--ease);
+}
+#dropzone:hover{background:var(--surface-2)}
+#dropzone:hover::before{border-color:rgba(var(--accent-rgb),.5)}
+#dropzone.dragover{background:rgba(var(--accent-rgb),.07);transform:scale(1.008)}
+#dropzone.dragover::before{border-color:var(--accent);border-style:solid}
+#dropzone.busy{cursor:progress}
+.dz-icon{
+  width:60px;height:60px;margin:0 auto 20px;border-radius:17px;display:grid;place-items:center;
+  background:var(--surface-2);border:1px solid var(--line);transition:transform .4s var(--ease),border-color .4s var(--ease);
+}
+#dropzone:hover .dz-icon{transform:translateY(-4px);border-color:rgba(var(--accent-rgb),.35)}
+.dz-icon svg{width:26px;height:26px;stroke:var(--accent);fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.dz-title{font-size:1.06rem;font-weight:550}
+.dz-hint{color:var(--faint);font-size:.855rem;margin-top:7px}
+.dz-formats{display:flex;gap:7px;justify-content:center;margin-top:18px;flex-wrap:wrap}
+.chip{padding:4px 11px;border-radius:7px;font-size:.715rem;font-weight:550;letter-spacing:.05em;background:var(--surface);border:1px solid var(--line);color:var(--muted)}
+input[type=file]{display:none}
+
+.scan{display:none;padding:12px 4px}
+.scan.on{display:block;animation:fadeUp .5s var(--ease)}
+.scan-doc{position:relative;width:104px;height:132px;margin:0 auto 26px;border-radius:11px;background:var(--surface-2);border:1px solid var(--line);overflow:hidden}
+.scan-doc i{position:absolute;left:16px;right:16px;height:5px;border-radius:3px;background:var(--surface-3)}
+.scan-doc i:nth-child(1){top:22px}
+.scan-doc i:nth-child(2){top:38px;right:36px}
+.scan-doc i:nth-child(3){top:62px}
+.scan-doc i:nth-child(4){top:78px;right:30px}
+.scan-doc i:nth-child(5){top:102px;right:48px}
+.scan-beam{
+  position:absolute;left:0;right:0;height:42px;top:-42px;
+  background:linear-gradient(to bottom,transparent,rgba(var(--accent-rgb),.28),transparent);
+  border-bottom:1.5px solid var(--accent);animation:beam 1.7s var(--ease) infinite;
+}
+@keyframes beam{0%{top:-42px}100%{top:132px}}
+.scan-steps{max-width:300px;margin:0 auto;display:flex;flex-direction:column;gap:11px}
+.step{display:flex;align-items:center;gap:11px;font-size:.865rem;color:var(--faint);transition:color .4s var(--ease)}
+.step .box{width:17px;height:17px;border-radius:50%;flex:none;display:grid;place-items:center;border:1.5px solid var(--line-2);transition:.4s var(--ease)}
+.step .box svg{width:9px;height:9px;stroke:var(--on-accent);stroke-width:3.2;fill:none;stroke-linecap:round;stroke-linejoin:round;opacity:0;transition:opacity .3s}
+.step.active{color:var(--text)}
+.step.active .box{border-color:var(--accent);box-shadow:0 0 0 3px rgba(var(--accent-rgb),.14)}
+.step.done{color:var(--muted)}
+.step.done .box{background:var(--accent);border-color:var(--accent)}
+.step.done .box svg{opacity:1}
+
+.alert{
+  display:none;align-items:flex-start;gap:11px;margin-top:18px;padding:13px 16px;border-radius:var(--r);
+  background:var(--err-bg);border:1px solid var(--err-line);font-size:.875rem;color:var(--err-text);
+}
+.alert.on{display:flex;animation:fadeUp .4s var(--ease)}
+.alert svg{width:17px;height:17px;flex:none;margin-top:2px;stroke:var(--err-icon);fill:none;stroke-width:1.8;stroke-linecap:round}
+
+#results{display:none;margin-top:26px}
+#results.on{display:block}
+.res-head{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:22px}
+.res-file{display:flex;align-items:center;gap:11px;min-width:0}
+.res-file .ico{width:34px;height:34px;border-radius:10px;flex:none;display:grid;place-items:center;background:var(--surface-2);border:1px solid var(--line)}
+.res-file .ico svg{width:16px;height:16px;stroke:var(--muted);fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.res-file .n{font-size:.9rem;font-weight:550;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:280px}
+.res-file .m{font-size:.75rem;color:var(--faint)}
+
+.badge{display:inline-flex;align-items:center;gap:7px;padding:5px 13px;border-radius:99px;font-size:.755rem;font-weight:600;letter-spacing:.01em}
+.badge i{width:6px;height:6px;border-radius:50%;background:currentColor}
+.badge.haute{background:var(--ok-bg);color:var(--ok-text);border:1px solid var(--ok-line)}
+.badge.moyenne{background:var(--warn-bg);color:var(--warn-text);border:1px solid var(--warn-line)}
+.badge.basse{background:var(--err-bg);color:var(--err-text);border:1px solid var(--err-line)}
+
+.amounts{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:12px}
+.amt{position:relative;padding:18px;border-radius:var(--r);background:var(--surface);border:1px solid var(--line);overflow:hidden}
+.amt.hero-amt{background:linear-gradient(150deg,rgba(var(--accent-rgb),.12),rgba(var(--accent-2-rgb),.05));border-color:rgba(var(--accent-rgb),.28)}
+.amt .k{font-size:.715rem;text-transform:uppercase;letter-spacing:.11em;color:var(--faint);font-weight:600}
+.amt .v{font-size:1.42rem;font-weight:650;margin-top:8px;letter-spacing:-.025em;font-variant-numeric:tabular-nums}
+.c{font-size:.78em;color:var(--faint);font-weight:500;margin-inline-start:4px}
+
+.check{display:flex;align-items:center;gap:9px;padding:10px 15px;border-radius:var(--r);font-size:.815rem;font-weight:500;margin-bottom:22px}
+.check.ok{background:var(--ok-bg);border:1px solid var(--ok-line);color:var(--ok-text)}
+.check.warn{background:var(--warn-bg);border:1px solid var(--warn-line);color:var(--warn-text)}
+.check svg{width:15px;height:15px;flex:none;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+
+.fields{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--line);border:1px solid var(--line);border-radius:var(--r);overflow:hidden;margin-bottom:26px}
+.field{background:var(--card);padding:15px 17px}
+.field .k{font-size:.705rem;text-transform:uppercase;letter-spacing:.1em;color:var(--faint);font-weight:600}
+.field .v{margin-top:6px;font-size:.93rem;font-weight:500;word-break:break-word}
+
+.table-wrap{border:1px solid var(--line);border-radius:var(--r);overflow:hidden;overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:.875rem;min-width:520px}
+thead th{
+  text-align:start;padding:12px 17px;background:var(--surface);
+  font-size:.7rem;text-transform:uppercase;letter-spacing:.1em;color:var(--faint);font-weight:600;border-bottom:1px solid var(--line);
+}
+tbody td{padding:13px 17px;border-bottom:1px solid var(--line)}
+tbody tr:last-child td{border-bottom:none}
+tbody tr{opacity:0;transform:translateY(8px);animation:fadeUp .5s var(--ease) forwards}
+tbody tr:hover{background:var(--surface)}
+td.num,th.num{text-align:end;font-variant-numeric:tabular-nums}
+.empty-row{color:var(--faint);text-align:center!important;padding:26px!important}
+.res-actions{display:flex;gap:11px;margin-top:22px;flex-wrap:wrap}
+.res-actions svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+
+@keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+
+/* ============================================================
+   FEATURES
+   ============================================================ */
+.features{padding:110px 0}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(255px,1fr));gap:18px}
+.card{
+  position:relative;padding:28px;border-radius:var(--r-lg);background:var(--card);border:1px solid var(--line);
+  transition:transform .45s var(--ease),border-color .45s var(--ease);overflow:hidden;
+}
+.card::before{
+  content:"";position:absolute;inset:0;opacity:0;transition:opacity .45s var(--ease);
+  background:radial-gradient(420px circle at var(--mx,50%) var(--my,0%),rgba(var(--accent-rgb),.09),transparent 65%);
+}
+.card:hover{transform:translateY(-5px);border-color:var(--line-2)}
+.card:hover::before{opacity:1}
+.card-ico{width:42px;height:42px;border-radius:12px;display:grid;place-items:center;margin-bottom:18px;background:var(--surface-2);border:1px solid var(--line)}
+.card-ico svg{width:19px;height:19px;stroke:var(--accent);fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.card h3{position:relative;font-size:1.04rem;margin-bottom:9px;font-weight:600}
+.card p{position:relative;font-size:.895rem;color:var(--muted);line-height:1.62}
+
+/* ============================================================
+   PRICING
+   ============================================================ */
+.pricing{padding:110px 0}
+.plans{display:grid;grid-template-columns:repeat(auto-fit,minmax(272px,1fr));gap:18px;align-items:start}
+.plan{
+  position:relative;padding:32px 28px;border-radius:var(--r-lg);background:var(--card);border:1px solid var(--line);
+  transition:transform .45s var(--ease),border-color .45s var(--ease);
+}
+.plan:hover{transform:translateY(-5px);border-color:var(--line-2)}
+.plan.featured{
+  background:linear-gradient(170deg,rgba(var(--accent-rgb),.09),rgba(var(--accent-2-rgb),.04)),var(--card);
+  border-color:rgba(var(--accent-rgb),.32);box-shadow:0 30px 70px -40px rgba(var(--accent-rgb),.45);
+}
+.plan-tag{
+  position:absolute;top:-11px;left:50%;transform:translateX(-50%);
+  padding:4px 14px;border-radius:99px;font-size:.695rem;font-weight:700;letter-spacing:.09em;text-transform:uppercase;
+  background:var(--grad);color:var(--on-accent);white-space:nowrap;
+}
+.plan h3{font-size:1.02rem;font-weight:600}
+.plan .desc{font-size:.85rem;color:var(--faint);margin-top:6px;min-height:40px}
+.price{display:flex;align-items:baseline;flex-wrap:wrap;gap:4px 8px;margin:20px 0 22px;min-height:60px}
+/* price ranges are numbers + dash: keep them LTR so Arabic doesn't render "250–180" */
+.price .a,.addon-price .a{font-weight:650;letter-spacing:-.04em;line-height:1.2;direction:ltr;unicode-bidi:isolate;white-space:nowrap}
+.price .a{font-size:2.15rem}
+.price .u{font-size:.85rem;color:var(--faint)}
+
+.addons{display:grid;grid-template-columns:1fr 1.35fr;gap:18px;margin-top:18px}
+.addon{
+  display:grid;grid-template-columns:auto minmax(0,1fr);gap:14px 16px;align-items:start;
+  padding:24px 26px;border-radius:var(--r-lg);background:var(--card);border:1px solid var(--line);
+}
+.addon.setup{border-color:rgba(var(--accent-2-rgb),.3);background:linear-gradient(160deg,rgba(var(--accent-2-rgb),.06),transparent 60%),var(--card)}
+.addon-ico{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;background:var(--surface-2);border:1px solid var(--line)}
+.addon-ico svg{width:18px;height:18px;stroke:var(--accent);fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.addon-body h3{font-size:1rem;font-weight:600;margin-bottom:6px}
+.addon-body p{font-size:.86rem;color:var(--muted);line-height:1.6}
+.addon-tag{
+  display:inline-block;margin-bottom:8px;padding:2px 10px;border-radius:99px;
+  font-size:.68rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;
+  color:var(--info-text);background:var(--info-bg);border:1px solid var(--info-line);
+}
+.addon-price{grid-column:2;display:flex;align-items:baseline;flex-wrap:wrap;gap:4px 8px;padding-top:12px;border-top:1px solid var(--line)}
+.addon-price .a{font-size:1.6rem}
+.addon-price .u{font-size:.82rem;color:var(--faint)}
+.plan ul{list-style:none;margin:24px 0 0;padding:0;display:flex;flex-direction:column;gap:12px}
+.plan li{display:flex;align-items:flex-start;gap:10px;font-size:.87rem;color:var(--muted)}
+.plan li svg{width:15px;height:15px;flex:none;margin-top:4px;stroke:var(--accent);fill:none;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
+.plan .btn{width:100%}
+.pricing-note{text-align:center;margin-top:34px;font-size:.82rem;color:var(--faint)}
+
+/* ============================================================
+   CONTACT
+   ============================================================ */
+.contact{padding:110px 0 120px}
+.contact-grid{display:grid;grid-template-columns:1fr 1.15fr;gap:52px;align-items:start}
+.contact-list{display:flex;flex-direction:column;gap:16px;margin-top:34px}
+.contact-item{display:flex;align-items:center;gap:14px}
+.contact-item .ico{width:38px;height:38px;border-radius:11px;flex:none;display:grid;place-items:center;background:var(--surface);border:1px solid var(--line)}
+.contact-item .ico svg{width:16px;height:16px;stroke:var(--accent);fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.contact-item .k{font-size:.705rem;text-transform:uppercase;letter-spacing:.1em;color:var(--faint);font-weight:600}
+.contact-item .v{font-size:.92rem;font-weight:500}
+.contact-item .ltr{direction:ltr;unicode-bidi:isolate}
+
+.form{padding:30px;border-radius:var(--r-lg);background:var(--card);border:1px solid var(--line)}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.fld{margin-bottom:15px}
+.fld label{display:block;font-size:.755rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--faint);margin-bottom:8px}
+.fld input,.fld textarea{
+  width:100%;padding:12px 15px;border-radius:var(--r-sm);background:var(--input-bg);border:1px solid var(--line-2);
+  font-size:.9rem;transition:border-color .3s var(--ease),box-shadow .3s var(--ease),background .3s;resize:vertical;
+}
+.fld input::placeholder,.fld textarea::placeholder{color:var(--placeholder)}
+.fld input:focus,.fld textarea:focus{outline:none;border-color:rgba(var(--accent-rgb),.55);box-shadow:0 0 0 3px rgba(var(--accent-rgb),.12);background:var(--input-bg-focus)}
+
+/* ============================================================
+   FOOTER
+   ============================================================ */
+footer{position:relative;z-index:1;border-top:1px solid var(--line);padding:38px 0;background:rgba(var(--bg-rgb),.6)}
+.foot{display:flex;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap}
+.foot .copy{font-size:.8rem;color:var(--faint)}
+.foot-links{display:flex;gap:22px;flex-wrap:wrap}
+.foot-links a{font-size:.82rem;color:var(--muted);transition:color .3s}
+.foot-links a:hover{color:var(--accent)}
+
+/* ============================================================
+   SCROLL REVEAL
+   ============================================================ */
+.reveal{opacity:0;transform:translateY(26px);transition:opacity .85s var(--ease),transform .85s var(--ease)}
+.reveal.in{opacity:1;transform:none}
+.reveal[data-d="1"]{transition-delay:.09s}
+.reveal[data-d="2"]{transition-delay:.18s}
+.reveal[data-d="3"]{transition-delay:.27s}
+.reveal[data-d="4"]{transition-delay:.36s}
+
+/* ============================================================
+   RESPONSIVE
+   ============================================================ */
+@media (max-width:1120px){
+  .brand em{display:none}
+  .header-inner{gap:12px}
+  .nav a{padding:8px 11px}
+  .header-actions .btn-ghost{display:none}
+}
+@media (max-width:920px){
+  .addons{grid-template-columns:1fr}
+  .contact-grid{grid-template-columns:1fr;gap:38px}
+  .amounts{grid-template-columns:1fr}
+  .fields{grid-template-columns:repeat(2,1fr)}
+}
+@media (max-width:860px){
+  .nav,.header-actions .btn{display:none}
+  .nav-toggle{display:grid}
+  .mobile-menu{display:flex}
+}
+@media (max-width:780px){
+  .wrap{padding:0 20px}
+  .header-inner{padding:0 20px}
+  .ws-body{padding:20px}
+  .hero{padding:calc(var(--header-h) + 62px) 0 76px}
+  .features,.pricing,.contact{padding:74px 0}
+  .stats{grid-template-columns:1fr;max-width:340px}
+  .fields{grid-template-columns:1fr}
+  .row{grid-template-columns:1fr}
+  #dropzone{padding:40px 18px}
+  .res-file .n{max-width:180px}
+}
+@media (max-width:400px){
+  .brand > span:last-child{display:none}
+}
+@media (prefers-reduced-motion:reduce){
+  .reveal,.site-header,.nav a{opacity:1;transform:none}
+}
+</style>
+</head>
+<body>
+
+<div class="ambient"><div class="orb orb-1"></div><div class="orb orb-2"></div></div>
+<div class="grid-overlay"></div>
+<div class="vignette"></div>
+<div class="progress" id="progress"></div>
+
+<header class="site-header" id="header">
+  <div class="header-inner">
+    <a href="#intro" class="brand">
+      <span class="brand-mark">iS</span>
+      <span>iSteps <em data-i18n="brand.suffix">/ Factures</em></span>
+    </a>
+
+    <nav class="nav" id="nav" data-i18n-attr="aria-label:nav.aria">
+      <span class="nav-pill" id="navPill"></span>
+      <a href="#intro" data-i18n="nav.intro">Intro</a>
+      <a href="#demo" data-i18n="nav.demo">Démo</a>
+      <a href="#features" data-i18n="nav.features">Fonctions</a>
+      <a href="#pricing" data-i18n="nav.pricing">Tarifs</a>
+      <a href="#contact" data-i18n="nav.contact">Contact</a>
+    </nav>
+
+    <div class="header-actions">
+      <div class="prefs" data-prefs></div>
+      <a href="/dashboard" class="btn btn-ghost btn-sm" data-i18n="nav.dashboard">Tableau de bord</a>
+      <a href="#demo" class="btn btn-primary btn-sm" data-i18n="cta.try">Essayer la démo</a>
+      <button class="nav-toggle" id="navToggle" aria-expanded="false" data-i18n-attr="aria-label:ui.menu">
+        <span></span><span></span>
+      </button>
+    </div>
+  </div>
+  <div class="header-line"></div>
+</header>
+
+<div class="mobile-menu" id="mobileMenu">
+  <a href="#intro" data-i18n="nav.intro">Intro</a>
+  <a href="#demo" data-i18n="nav.demo">Démo</a>
+  <a href="#features" data-i18n="nav.features">Fonctions</a>
+  <a href="#pricing" data-i18n="nav.pricing">Tarifs</a>
+  <a href="#contact" data-i18n="nav.contact">Contact</a>
+  <a href="/dashboard" data-i18n="nav.dashboard">Tableau de bord</a>
+</div>
+
+<main>
+
+  <!-- ================= HERO ================= -->
+  <section id="intro" class="hero">
+    <div class="wrap">
+      <div class="reveal in">
+        <span class="eyebrow"><span class="dot"></span> <span data-i18n="hero.eyebrow">Extraction par IA · Vision documentaire</span></span>
+      </div>
+      <h1 class="reveal in" data-d="1" data-i18n-html="hero.title">Vos factures deviennent <span class="gradient-text">des données</span> en quelques secondes</h1>
+      <p class="hero-sub reveal in" data-d="2" data-i18n="hero.sub">Déposez une facture au format PDF ou image. iSteps lit le document, identifie le fournisseur, les montants et chaque ligne de détail, puis vous rend un fichier prêt à intégrer dans votre comptabilité.</p>
+      <div class="hero-cta reveal in" data-d="3">
+        <a href="#demo" class="btn btn-primary" data-i18n="hero.cta1">Tester maintenant</a>
+        <a href="#features" class="btn btn-ghost" data-i18n="hero.cta2">Voir comment ça marche</a>
+      </div>
+      <p class="hero-note reveal in" data-d="4" data-i18n="hero.note">Aucune installation · Formats PDF, PNG et JPG · Export CSV immédiat</p>
+
+      <div class="stats reveal" data-d="1">
+        <div class="stat"><div class="v" data-count="12" data-suffix-key="stat.time.suffix">0</div><div class="l" data-i18n="stat.time">Traitement moyen</div></div>
+        <div class="stat"><div class="v" data-count="96" data-suffix=" %">0</div><div class="l" data-i18n="stat.fields">Champs reconnus</div></div>
+        <div class="stat"><div class="v" data-count="9">0</div><div class="l" data-i18n="stat.count">Champs extraits</div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= DEMO ================= -->
+  <section id="demo" class="demo">
+    <div class="wrap">
+      <div class="workspace reveal">
+        <div class="ws-bar">
+          <div class="ws-dots"><i></i><i></i><i></i></div>
+          <span class="ws-title" data-i18n="demo.wsTitle">iSteps · Espace d'extraction</span>
+          <span class="ws-live"><i></i> <span data-i18n="demo.live">En direct</span></span>
+        </div>
+
+        <div class="ws-body">
+          <div id="dropzone" tabindex="0" role="button" data-i18n-attr="aria-label:demo.dropAria">
+            <div id="dzIdle">
+              <div class="dz-icon">
+                <svg viewBox="0 0 24 24"><path d="M12 16V4m0 0L8 8m4-4 4 4"/><path d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/></svg>
+              </div>
+              <div class="dz-title" data-i18n="demo.dropTitle">Glissez votre facture ici</div>
+              <div class="dz-hint" data-i18n="demo.dropHint">ou cliquez pour parcourir vos fichiers</div>
+              <div class="dz-formats"><span class="chip">PDF</span><span class="chip">PNG</span><span class="chip">JPG</span></div>
+            </div>
+
+            <div class="scan" id="scan">
+              <div class="scan-doc"><i></i><i></i><i></i><i></i><i></i><div class="scan-beam"></div></div>
+              <div class="scan-steps">
+                <div class="step"><span class="box"><svg viewBox="0 0 24 24"><path d="m5 13 4 4L19 7"/></svg></span> <span data-i18n="demo.step1">Lecture du document</span></div>
+                <div class="step"><span class="box"><svg viewBox="0 0 24 24"><path d="m5 13 4 4L19 7"/></svg></span> <span data-i18n="demo.step2">Reconnaissance des champs</span></div>
+                <div class="step"><span class="box"><svg viewBox="0 0 24 24"><path d="m5 13 4 4L19 7"/></svg></span> <span data-i18n="demo.step3">Structuration des lignes</span></div>
+                <div class="step"><span class="box"><svg viewBox="0 0 24 24"><path d="m5 13 4 4L19 7"/></svg></span> <span data-i18n="demo.step4">Contrôle des montants</span></div>
+              </div>
+            </div>
+
+            <input type="file" id="fileInput" accept=".pdf,.png,.jpg,.jpeg">
+          </div>
+
+          <div class="alert" id="alert" role="alert">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 8v4.5M12 16h.01"/></svg>
+            <span id="alertText"></span>
+          </div>
+
+          <div id="results">
+            <div class="res-head">
+              <div class="res-file">
+                <span class="ico"><svg viewBox="0 0 24 24"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg></span>
+                <div>
+                  <div class="n" id="resName" dir="auto">facture.pdf</div>
+                  <div class="m" id="resMeta">—</div>
+                </div>
+              </div>
+              <div id="confidence"></div>
+            </div>
+
+            <div class="amounts">
+              <div class="amt"><div class="k" data-i18n="amt.ht">Montant HT</div><div class="v" id="vHT">—</div></div>
+              <div class="amt"><div class="k" data-i18n="amt.tva">TVA</div><div class="v" id="vTVA">—</div></div>
+              <div class="amt hero-amt"><div class="k" data-i18n="amt.ttc">Total TTC</div><div class="v" id="vTTC">—</div></div>
+            </div>
+
+            <div class="check" id="check" hidden>
+              <svg viewBox="0 0 24 24"><path id="checkIcon" d="m5 13 4 4L19 7"/></svg>
+              <span id="checkText"></span>
+            </div>
+
+            <div class="fields" id="fields"></div>
+
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th data-i18n="th.desc">Description</th>
+                    <th class="num" data-i18n="th.qty">Qté</th>
+                    <th class="num" data-i18n="th.unit">Prix unitaire</th>
+                    <th class="num" data-i18n="th.amount">Montant</th>
+                  </tr>
+                </thead>
+                <tbody id="linesBody"></tbody>
+              </table>
+            </div>
+
+            <div class="res-actions">
+              <button class="btn btn-primary btn-sm" id="exportBtn">
+                <svg viewBox="0 0 24 24"><path d="M12 4v11m0 0-4-4m4 4 4-4"/><path d="M5 19h14"/></svg>
+                <span data-i18n="res.export">Exporter en CSV</span>
+              </button>
+              <button class="btn btn-ghost btn-sm" id="resetBtn" data-i18n="res.reset">Nouvelle facture</button>
+              <a class="btn btn-ghost btn-sm" href="/dashboard" data-i18n="res.viewDash">Voir le tableau de bord</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= FEATURES ================= -->
+  <section id="features" class="features">
+    <div class="wrap">
+      <div class="section-head reveal">
+        <span class="tag" data-i18n="feat.tag">Fonctionnalités</span>
+        <h2 data-i18n="feat.title">Pensé pour le quotidien d'un cabinet</h2>
+        <p data-i18n="feat.sub">Pas un outil générique : chaque étape a été calibrée sur les formats de factures que vous recevez réellement.</p>
+      </div>
+
+      <div class="cards">
+        <div class="card reveal">
+          <div class="card-ico"><svg viewBox="0 0 24 24"><path d="M12 3 4 7v6c0 4.4 3.4 8 8 8s8-3.6 8-8V7z"/><path d="m9 12 2 2 4-4"/></svg></div>
+          <h3 data-i18n="feat.1.title">Lecture intelligente</h3>
+          <p data-i18n="feat.1.body">Scans, photos, PDF natifs : le modèle vision identifie les champs même sur des documents imparfaits ou inclinés.</p>
+        </div>
+        <div class="card reveal" data-d="1">
+          <div class="card-ico"><svg viewBox="0 0 24 24"><path d="M3 12h4l3 8 4-16 3 8h4"/></svg></div>
+          <h3 data-i18n="feat.2.title">Contrôle automatique</h3>
+          <p data-i18n="feat.2.body">La cohérence HT + TVA = TTC est vérifiée à chaque extraction. Tout écart est signalé avant l'export.</p>
+        </div>
+        <div class="card reveal" data-d="2">
+          <div class="card-ico"><svg viewBox="0 0 24 24"><path d="M4 7V5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v2"/><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 12h8M8 16h5"/></svg></div>
+          <h3 data-i18n="feat.3.title">Format tunisien</h3>
+          <p data-i18n="feat.3.body">Taux de TVA multiples, séparateurs décimaux à la virgule, mentions en français et en arabe : tout est pris en charge.</p>
+        </div>
+        <div class="card reveal" data-d="3">
+          <div class="card-ico"><svg viewBox="0 0 24 24"><path d="M12 4v11m0 0-4-4m4 4 4-4"/><path d="M4 19h16"/></svg></div>
+          <h3 data-i18n="feat.4.title">Export immédiat</h3>
+          <p data-i18n="feat.4.body">En-tête et lignes de détail exportés en CSV, directement importable dans votre logiciel comptable.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= PRICING ================= -->
+  <section id="pricing" class="pricing">
+    <div class="wrap">
+      <div class="section-head reveal">
+        <span class="tag" data-i18n="price.tag">Tarifs</span>
+        <h2 data-i18n="price.title">Une grille simple, sans surprise</h2>
+        <p data-i18n="price.sub">Commencez gratuitement, passez à l'échelle quand votre volume l'exige.</p>
+      </div>
+
+      <!-- Hypothèse de prix (value-based) : à valider lors des 2–3 premiers pilotes -->
+      <div class="plans">
+        <div class="plan reveal">
+          <h3 data-i18n="plan.a.name">Starter</h3>
+          <p class="desc" data-i18n="plan.a.desc">Pour les petits cabinets qui démarrent la saisie automatisée.</p>
+          <div class="price"><span class="a" data-i18n="plan.a.amount">180–250</span><span class="u" data-i18n="price.unit">DT / mois</span></div>
+          <a href="#contact" class="btn btn-ghost btn-sm" data-i18n="plan.a.cta">Commencer</a>
+          <ul>
+            <li><svg viewBox="0 0 24 24"><path d="m5 13 4 4L19 7"/></svg> <span data-i18n="plan.a.f1">Jusqu'à 100 factures par mois</span></li>
+            <li><svg viewBox="0 0 24 24"><path d="m5 13 4 4L19 7"/></svg> <span data-i18n="plan.a.f2">Export CSV</span></li>
+            <li><svg viewBox="0 0 24 24"><path d="m5 13 4 4L19 7"/></svg> <span data-i18n="plan.a.f3">Contrôle automatique HT + TVA = TTC</span></li>
+            <li><svg viewBox="0 0 24 24"><path d="m5 13 4 4L19 7"/></svg> <span data-i18n="plan.a.f4">Tableau de bord des dépenses</span></li>
+          </ul>
+        </div>
+
+        <div class="plan featured reveal" data-d="1">
+          <span class="plan-tag" data-i18n="price.popular">Le plus choisi</span>
+          <h3 data-i18n="plan.b.name">Standard</h3>
+          <p class="desc" data-i18n="plan.b.desc">Le volume type d'un cabinet comptable de taille moyenne.</p>
+          <div class="price"><span class="a" data-i18n="plan.b.amount">400–500</span><span class="u" data-i18n="price.unit">DT / mois</span></div>
+          <a href="#contact" class="btn btn-primary btn-sm" data-i18n="plan.b.cta">Démarrer un pilote</a>
+          <ul>
+            <li><svg viewBox="0 0 24 24"><path d="m5 13 4 4L19 7"/></svg> <span data-i18n="plan.b.f1">Jusqu'à 300 factures par mois</span></li>
+            <li><svg viewBox="0 0 24 24"><path d="m5 13 4 4L19 7"/></svg> <span data-i18n="plan.b.f2">Tout le forfait Starter</span></li>
+            <li><svg viewBox="0 0 24 24"><path d="m5 13 4 4L19 7"/></svg> <span data-i18n="plan.b.f3">Historique et archivage</span></li>
+            <li><svg viewBox="0 0 24 24"><path d="m5 13 4 4L19 7"/></svg> <span data-i18n="plan.b.f4">Support prioritaire</span></li>
+          </ul>
+        </div>
+
+        <div class="plan reveal" data-d="2">
+          <h3 data-i18n="plan.c.name">Volume</h3>
+          <p class="desc" data-i18n="plan.c.desc">Pour les cabinets qui traitent un fort volume de factures.</p>
+          <div class="price"><span class="a" data-i18n="plan.c.amount">800–1 000</span><span class="u" data-i18n="price.unit">DT / mois</span></div>
+          <a href="#contact" class="btn btn-ghost btn-sm" data-i18n="plan.c.cta">Nous contacter</a>
+          <ul>
+            <li><svg viewBox="0 0 24 24"><path d="m5 13 4 4L19 7"/></svg> <span data-i18n="plan.c.f1">Jusqu'à 800 factures par mois</span></li>
+            <li><svg viewBox="0 0 24 24"><path d="m5 13 4 4L19 7"/></svg> <span data-i18n="plan.c.f2">Tout le forfait Standard</span></li>
+            <li><svg viewBox="0 0 24 24"><path d="m5 13 4 4L19 7"/></svg> <span data-i18n="plan.c.f3">Extraction ajustée à vos formats</span></li>
+            <li><svg viewBox="0 0 24 24"><path d="m5 13 4 4L19 7"/></svg> <span data-i18n="plan.c.f4">Interlocuteur dédié</span></li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="addons">
+        <div class="addon reveal">
+          <span class="addon-ico"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></span>
+          <div class="addon-body">
+            <h3 data-i18n="addon.over.title">Au-delà du forfait</h3>
+            <p data-i18n="addon.over.body">Facturé uniquement si vous dépassez votre volume mensuel, sans changer de forfait.</p>
+          </div>
+          <div class="addon-price"><span class="a" data-i18n="addon.over.amount">1,5–2</span><span class="u" data-i18n="addon.over.unit">DT / facture supplémentaire</span></div>
+        </div>
+        <div class="addon setup reveal" data-d="1">
+          <span class="addon-ico"><svg viewBox="0 0 24 24"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L4 17l3 3 5.3-5.3a4 4 0 0 0 5.4-5.4l-2.4 2.4-2.6-.6-.6-2.6z"/></svg></span>
+          <div class="addon-body">
+            <span class="addon-tag" data-i18n="addon.setup.tag">Frais uniques</span>
+            <h3 data-i18n="addon.setup.title">Mise en place &amp; pilote</h3>
+            <p data-i18n="addon.setup.body">Nous configurons l’extraction pour vos formats de factures et menons un pilote de 2 à 3 semaines sur vos documents réels. Vous passez ensuite sur un forfait mensuel.</p>
+          </div>
+          <div class="addon-price"><span class="a" data-i18n="addon.setup.amount">2 000–4 000</span><span class="u" data-i18n="addon.setup.unit">DT, une seule fois</span></div>
+        </div>
+      </div>
+
+      <p class="pricing-note reveal" data-i18n="price.note">Tarifs hors taxes, indicatifs pendant la phase pilote. Engagement mensuel, résiliable à tout moment.</p>
+    </div>
+  </section>
+
+  <!-- ================= CONTACT ================= -->
+  <section id="contact" class="contact">
+    <div class="wrap">
+      <div class="contact-grid">
+        <div class="reveal">
+          <div class="section-head" style="margin-bottom:0">
+            <span class="tag" data-i18n="contact.tag">Contact</span>
+            <h2 data-i18n="contact.title">Parlons de vos documents</h2>
+            <p data-i18n="contact.sub">Envoyez-nous quelques factures représentatives : nous vous montrons le résultat sur vos propres données.</p>
+          </div>
+          <div class="contact-list">
+            <div class="contact-item">
+              <span class="ico"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg></span>
+              <div><div class="k" data-i18n="contact.email">Email</div><div class="v ltr">contact@isteps.tn</div></div>
+            </div>
+            <div class="contact-item">
+              <span class="ico"><svg viewBox="0 0 24 24"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a1 1 0 0 1-1 1A16 16 0 0 1 4 5a1 1 0 0 1 1-1"/></svg></span>
+              <div><div class="k" data-i18n="contact.phone">Téléphone</div><div class="v ltr">+216 00 000 000</div></div>
+            </div>
+            <div class="contact-item">
+              <span class="ico"><svg viewBox="0 0 24 24"><path d="M12 21s7-5.6 7-11a7 7 0 1 0-14 0c0 5.4 7 11 7 11"/><circle cx="12" cy="10" r="2.5"/></svg></span>
+              <div><div class="k" data-i18n="contact.office">Bureau</div><div class="v" data-i18n="contact.officeValue">Tunis, Tunisie</div></div>
+            </div>
+          </div>
+        </div>
+
+        <form class="form reveal" data-d="1" id="contactForm">
+          <div class="row">
+            <div class="fld"><label for="cName" data-i18n="form.name">Nom</label><input id="cName" type="text" placeholder="Votre nom" data-i18n-attr="placeholder:form.namePh" required></div>
+            <div class="fld"><label for="cOrg" data-i18n="form.org">Cabinet</label><input id="cOrg" type="text" placeholder="Nom du cabinet" data-i18n-attr="placeholder:form.orgPh"></div>
+          </div>
+          <div class="fld"><label for="cEmail" data-i18n="form.email">Email</label><input id="cEmail" type="email" dir="ltr" placeholder="vous@cabinet.tn" data-i18n-attr="placeholder:form.emailPh" required></div>
+          <div class="fld"><label for="cMsg" data-i18n="form.msg">Message</label><textarea id="cMsg" rows="4" placeholder="Volume mensuel, types de documents, besoins particuliers…" data-i18n-attr="placeholder:form.msgPh"></textarea></div>
+          <button type="submit" class="btn btn-primary" style="width:100%" data-i18n="form.submit">Demander une démonstration</button>
+        </form>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap foot">
+    <div class="brand"><span class="brand-mark">iS</span><span>iSteps</span></div>
+    <div class="foot-links">
+      <a href="#intro" data-i18n="nav.intro">Intro</a>
+      <a href="#demo" data-i18n="nav.demo">Démo</a>
+      <a href="#features" data-i18n="nav.features">Fonctions</a>
+      <a href="#pricing" data-i18n="nav.pricing">Tarifs</a>
+      <a href="#contact" data-i18n="nav.contact">Contact</a>
+      <a href="/dashboard" data-i18n="nav.dashboard">Tableau de bord</a>
+    </div>
+    <div class="copy">© <span id="year"></span> iSteps — <span data-i18n="footer.tagline">Extraction documentaire</span></div>
+  </div>
+</footer>
+
+<script src="/static/i18n.js"></script>
+<script src="/static/site.js"></script>
+<script src="/static/smooth-scroll.js"></script>
+<script>
+const { t } = I18N;
+
+/* ============================================================
+   HEADER / SCROLL PROGRESS / SMOOTH SCROLL
+   ============================================================ */
+const header   = document.getElementById('header');
+const progress = document.getElementById('progress');
+let ticking = false, isScrolled = null;
+
+const smooth = createSmoothScroll({ onFrame: () => onScroll() });
+const scrollToEl = el => smooth.scrollToEl(el);
+
+function onScroll(){
+  const y = scrollY, max = smooth.maxScroll;
+  const s = y > 12;
+  if (s !== isScrolled) { header.classList.toggle('scrolled', s); isScrolled = s; }
+  progress.style.transform = `scaleX(${max > 0 ? Math.min(y / max, 1) : 0})`;
+  ticking = false;
+}
+addEventListener('scroll', () => {
+  if (!ticking) { requestAnimationFrame(onScroll); ticking = true; }
+}, { passive:true });
+addEventListener('resize', onScroll);
+onScroll();
+
+/* ============================================================
+   NAV — sliding pill + scrollspy + mobile menu
+   ============================================================ */
+const nav      = document.getElementById('nav');
+const navPill  = document.getElementById('navPill');
+const navLinks = [...nav.querySelectorAll('a')];
+const sections = navLinks.map(a => document.querySelector(a.getAttribute('href')));
+const activeLink = () => navLinks.find(a => a.classList.contains('active'));
+
+function movePill(link){
+  if (!link) { navPill.classList.remove('on'); return; }
+  navPill.classList.add('on');
+  navPill.style.width = `${link.offsetWidth}px`;
+  navPill.style.transform = `translate(${link.offsetLeft}px,-50%)`;
+}
+
+function setActive(id){
+  navLinks.forEach(a => a.classList.toggle('active', a.getAttribute('href') === `#${id}`));
+  movePill(activeLink());
+}
+
+const spy = new IntersectionObserver(entries => {
+  entries.forEach(e => { if (e.isIntersecting) setActive(e.target.id); });
+}, { rootMargin:'-45% 0px -50% 0px', threshold:0 });
+sections.forEach(s => s && spy.observe(s));
+
+nav.addEventListener('mouseleave', () => movePill(activeLink()));
+navLinks.forEach(a => a.addEventListener('mouseenter', () => movePill(a)));
+addEventListener('resize', () => movePill(activeLink()));
+
+const navToggle  = document.getElementById('navToggle');
+const mobileMenu = document.getElementById('mobileMenu');
+navToggle.addEventListener('click', () => {
+  const open = mobileMenu.classList.toggle('open');
+  navToggle.classList.toggle('open', open);
+  navToggle.setAttribute('aria-expanded', String(open));
+});
+mobileMenu.querySelectorAll('a').forEach(a => a.addEventListener('click', () => {
+  mobileMenu.classList.remove('open');
+  navToggle.classList.remove('open');
+  navToggle.setAttribute('aria-expanded', 'false');
+}));
+
+/* ============================================================
+   REVEAL ON SCROLL
+   ============================================================ */
+const revealer = new IntersectionObserver((entries, obs) => {
+  entries.forEach(e => {
+    if (e.isIntersecting) { e.target.classList.add('in'); obs.unobserve(e.target); }
+  });
+}, { threshold:0.12, rootMargin:'0px 0px -8% 0px' });
+document.querySelectorAll('.reveal:not(.in)').forEach(el => revealer.observe(el));
+
+/* ============================================================
+   COUNT-UP STATS
+   ============================================================ */
+const statSuffix = el => el.dataset.suffixKey ? t(el.dataset.suffixKey) : (el.dataset.suffix || '');
+const counter = new IntersectionObserver((entries, obs) => {
+  entries.forEach(e => {
+    if (!e.isIntersecting) return;
+    const el = e.target, to = +el.dataset.count;
+    const t0 = performance.now(), dur = 1400;
+    (function step(now){
+      const p = Math.min((now - t0) / dur, 1);
+      el.textContent = Math.round(to * (1 - Math.pow(1 - p, 3))) + statSuffix(el);
+      if (p < 1) requestAnimationFrame(step); else el.dataset.done = '1';
+    })(t0);
+    obs.unobserve(el);
+  });
+}, { threshold:0.6 });
+document.querySelectorAll('[data-count]').forEach(el => counter.observe(el));
+
+/* ============================================================
+   CARD SPOTLIGHT
+   ============================================================ */
+document.querySelectorAll('.card').forEach(c => {
+  c.addEventListener('mousemove', e => {
+    const r = c.getBoundingClientRect();
+    c.style.setProperty('--mx', `${e.clientX - r.left}px`);
+    c.style.setProperty('--my', `${e.clientY - r.top}px`);
+  });
+});
+
+/* ============================================================
+   EXTRACTION
+   ============================================================ */
+const dropzone  = document.getElementById('dropzone');
+const dzIdle    = document.getElementById('dzIdle');
+const scan      = document.getElementById('scan');
+const steps     = [...document.querySelectorAll('.step')];
+const fileInput = document.getElementById('fileInput');
+const alertBox  = document.getElementById('alert');
+const alertText = document.getElementById('alertText');
+const results   = document.getElementById('results');
+const linesBody = document.getElementById('linesBody');
+const fieldsBox = document.getElementById('fields');
+const exportBtn = document.getElementById('exportBtn');
+const resetBtn  = document.getElementById('resetBtn');
+
+let lastResult = null, lastFile = null, analysedAt = null, lastAlert = null, stepTimers = [];
+
+// Tunisian dinar is quoted in millimes: always 3 decimals
+let nf;
+const makeFormatter = () => { nf = new Intl.NumberFormat(I18N.locale, { minimumFractionDigits:3, maximumFractionDigits:3 }); };
+makeFormatter();
+
+const esc = v => String(v).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const num = v => {
+  if (v === null || v === undefined || v === '') return null;
+  const n = typeof v === 'number' ? v : parseFloat(String(v).replace(/\s/g,'').replace(',','.').replace(/[^\d.\-]/g,''));
+  return Number.isFinite(n) ? n : null;
+};
+const money = v => { const n = num(v); return n === null ? '—' : `${nf.format(n)}<span class="c">${esc(t('cur'))}</span>`; };
+
+dropzone.addEventListener('click', () => { if (!dropzone.classList.contains('busy')) fileInput.click(); });
+dropzone.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fileInput.click(); } });
+dropzone.addEventListener('dragover', e => { e.preventDefault(); dropzone.classList.add('dragover'); });
+dropzone.addEventListener('dragleave', () => dropzone.classList.remove('dragover'));
+dropzone.addEventListener('drop', e => {
+  e.preventDefault();
+  dropzone.classList.remove('dragover');
+  if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
+});
+fileInput.addEventListener('change', () => { if (fileInput.files.length) handleFile(fileInput.files[0]); });
+
+function showAlert(key, vars){
+  lastAlert = { key, vars };
+  alertText.textContent = t(key, vars);
+  alertBox.classList.add('on');
+}
+function hideAlert(){ lastAlert = null; alertBox.classList.remove('on'); }
+
+function startScan(){
+  dzIdle.style.display = 'none';
+  scan.classList.add('on');
+  dropzone.classList.add('busy');
+  steps.forEach(s => s.classList.remove('active','done'));
+  stepTimers.forEach(clearTimeout);
+  stepTimers = steps.map((s, i) => setTimeout(() => {
+    steps.slice(0, i).forEach(p => { p.classList.remove('active'); p.classList.add('done'); });
+    s.classList.add('active');
+  }, i * 1100));
+}
+
+function stopScan(){
+  stepTimers.forEach(clearTimeout);
+  stepTimers = [];
+  scan.classList.remove('on');
+  dzIdle.style.display = '';
+  dropzone.classList.remove('busy');
+}
+
+async function handleFile(file){
+  hideAlert();
+  results.classList.remove('on');
+  startScan();
+
+  const fd = new FormData();
+  fd.append('file', file);
+
+  try {
+    const res = await fetch('/extract', { method:'POST', body:fd });
+    if (!res.ok) {
+      let detail = res.statusText;
+      try { detail = (await res.json()).detail || detail; } catch {}
+      stopScan();
+      if (res.status === 400) showAlert('err.type');
+      else if (res.status === 429) showAlert('err.quota');
+      else if (res.status === 504) showAlert('err.timeout');
+      else showAlert('err.extract', { detail });
+      return;
+    }
+    const data = await res.json();
+    steps.forEach(s => { s.classList.remove('active'); s.classList.add('done'); });
+    await new Promise(r => setTimeout(r, 420));
+    stopScan();
+    lastResult = data;
+    lastFile = file;
+    analysedAt = new Date();
+    render(data, file);
+    results.scrollIntoView({ behavior:'smooth', block:'nearest' });
+  } catch (e) {
+    stopScan();
+    showAlert('err.network', { msg: e.message });
+  } finally {
+    fileInput.value = '';
+  }
+}
+
+function render(data, file){
+  results.classList.add('on');
+
+  document.getElementById('resName').textContent = file.name;
+  document.getElementById('resMeta').textContent = t('res.meta', {
+    size: new Intl.NumberFormat(I18N.locale).format(Math.round(file.size / 1024)),
+    time: analysedAt.toLocaleTimeString(I18N.locale, { hour:'2-digit', minute:'2-digit' }),
+  });
+
+  const conf = String(data.confiance || '').toLowerCase();
+  document.getElementById('confidence').innerHTML = ['haute','moyenne','basse'].includes(conf)
+    ? `<span class="badge ${conf}"><i></i>${esc(t('conf.' + conf))}</span>` : '';
+
+  document.getElementById('vHT').innerHTML  = money(data.montant_ht);
+  document.getElementById('vTVA').innerHTML = money(data.montant_tva);
+  document.getElementById('vTTC').innerHTML = money(data.montant_ttc);
+
+  const ht = num(data.montant_ht), tva = num(data.montant_tva), ttc = num(data.montant_ttc);
+  const check = document.getElementById('check');
+  if (ht !== null && tva !== null && ttc !== null) {
+    const gap = Math.abs(ht + tva - ttc);
+    const ok = gap < 0.02;
+    check.hidden = false;
+    check.className = `check ${ok ? 'ok' : 'warn'}`;
+    document.getElementById('checkIcon').setAttribute('d', ok ? 'm5 13 4 4L19 7' : 'M12 3 2 20h20zM12 10v4M12 17h.01');
+    document.getElementById('checkText').textContent = ok
+      ? t('check.ok')
+      : t('check.warn', { gap: `${nf.format(gap)} ${t('cur')}` });
+  } else {
+    check.hidden = true;
+  }
+
+  const fields = [
+    ['field.supplier', data.fournisseur],
+    ['field.date', data.date],
+    ['field.number', data.numero_facture],
+  ];
+  fieldsBox.innerHTML = fields.map(([k, v]) =>
+    `<div class="field"><div class="k">${esc(t(k))}</div><div class="v" dir="auto">${v ? esc(v) : '—'}</div></div>`
+  ).join('');
+
+  const lignes = Array.isArray(data.lignes) ? data.lignes : [];
+  linesBody.innerHTML = lignes.length
+    ? lignes.map((l, i) => `
+        <tr style="animation-delay:${i * 60}ms">
+          <td dir="auto">${l.description ? esc(l.description) : '—'}</td>
+          <td class="num">${l.quantite != null ? esc(l.quantite) : '—'}</td>
+          <td class="num">${money(l.prix_unitaire)}</td>
+          <td class="num">${money(l.montant)}</td>
+        </tr>`).join('')
+    : `<tr><td colspan="4" class="empty-row">${esc(t('res.noLines'))}</td></tr>`;
+}
+
+exportBtn.addEventListener('click', async () => {
+  if (!lastResult) return;
+  exportBtn.disabled = true;
+  try {
+    const res = await fetch('/export-csv', {
+      method:'POST',
+      headers:{ 'Content-Type':'application/json' },
+      body: JSON.stringify(lastResult),
+    });
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'facture_extraite.csv'; a.click();
+    URL.revokeObjectURL(url);
+  } catch (e) {
+    showAlert('err.export', { msg: e.message });
+  } finally {
+    exportBtn.disabled = false;
+  }
+});
+
+resetBtn.addEventListener('click', () => {
+  lastResult = lastFile = null;
+  results.classList.remove('on');
+  hideAlert();
+  scrollToEl(document.getElementById('demo'));
+});
+
+/* ============================================================
+   CONTACT FORM → mailto
+   ============================================================ */
+document.getElementById('contactForm').addEventListener('submit', e => {
+  e.preventDefault();
+  const val = id => document.getElementById(id).value;
+  const body = `${t('form.name')} : ${val('cName')}\n${t('form.org')} : ${val('cOrg')}\n${t('form.email')} : ${val('cEmail')}\n\n${val('cMsg')}`;
+  location.href = `mailto:contact@isteps.tn?subject=${encodeURIComponent(t('form.mailSubject'))}&body=${encodeURIComponent(body)}`;
+});
+
+document.getElementById('year').textContent = new Date().getFullYear();
+
+/* ============================================================
+   LANGUAGE CHANGE — re-render text built in JS
+   ============================================================ */
+addEventListener('isteps:lang', () => {
+  makeFormatter();
+  document.querySelectorAll('[data-count][data-done]').forEach(el => { el.textContent = el.dataset.count + statSuffix(el); });
+  if (lastResult && lastFile && results.classList.contains('on')) render(lastResult, lastFile);
+  if (lastAlert) showAlert(lastAlert.key, lastAlert.vars);
+  // link widths change with the language
+  requestAnimationFrame(() => movePill(activeLink()));
+});
+</script>
+</body>
+</html>

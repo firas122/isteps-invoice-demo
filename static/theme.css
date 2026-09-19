@@ -1,0 +1,197 @@
+/* ============================================================
+   iSteps — shared theme tokens, base, controls (both pages)
+   Dark is the base; light overrides the same tokens.
+   ============================================================ */
+:root{
+  color-scheme:dark;
+  --bg:#06080b;            --bg-rgb:6,8,11;
+  --card:#0d1014;          --card-rgb:13,16,20;
+  --surface:rgba(255,255,255,.035);
+  --surface-2:rgba(255,255,255,.06);
+  --surface-3:rgba(255,255,255,.1);
+  --line:rgba(255,255,255,.08);
+  --line-2:rgba(255,255,255,.15);
+  --text:#e9eef5;
+  --muted:#8e9bad;
+  --faint:#748095;
+
+  --accent:#2fe0a0;        --accent-rgb:47,224,160;
+  --accent-2-rgb:91,157,255;
+  --grad:linear-gradient(115deg,#2fe0a0,#35d0e8 52%,#5b9dff);
+  --on-accent:#03150d;
+  --glow:rgba(47,224,160,.55);
+
+  --header-bg:rgba(8,11,16,.94);
+  --menu-bg:rgba(10,13,18,.98);
+  --input-bg:rgba(0,0,0,.28);
+  --input-bg-focus:rgba(0,0,0,.4);
+  --placeholder:#566171;
+  --grid-line:rgba(255,255,255,.028);
+  --orb-1:rgba(47,224,160,.16);
+  --orb-2:rgba(91,157,255,.13);
+  --shadow-lg:0 40px 90px -40px rgba(0,0,0,.9);
+  --tooltip-bg:#161a20;
+  --tooltip-shadow:0 12px 30px -10px rgba(0,0,0,.8);
+
+  --ok-text:#7cecc4;   --ok-bg:rgba(47,224,160,.08);  --ok-line:rgba(47,224,160,.22);
+  --warn-text:#ffd282; --warn-bg:rgba(255,193,77,.08); --warn-line:rgba(255,193,77,.24);
+  --err-text:#ffc4ca;  --err-bg:rgba(255,107,122,.08); --err-line:rgba(255,107,122,.26); --err-icon:#ff6b7a;
+  --info-text:#c3d6f5; --info-bg:rgba(91,157,255,.07); --info-line:rgba(91,157,255,.2);
+
+  /* chart series — validated against --card in each mode (dataviz validator) */
+  --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s-other:#565e6b;
+  --chart-grid:#1b1f25; --chart-axis:#2d323a; --axis-text:#7a8596;
+  --status-good:#0ca30c; --status-warning:#fab219;
+
+  --r-sm:10px; --r:14px; --r-lg:20px; --r-xl:28px;
+  --maxw:1160px;
+  --ease:cubic-bezier(.22,.68,.32,1);
+  --header-h:68px;
+  --font:"Inter","IBM Plex Sans Arabic",-apple-system,BlinkMacSystemFont,"Segoe UI Variable Text","Segoe UI",Roboto,sans-serif;
+}
+
+:root[data-theme="light"]{
+  color-scheme:light;
+  --bg:#f5f7fa;            --bg-rgb:245,247,250;
+  --card:#ffffff;          --card-rgb:255,255,255;
+  --surface:rgba(15,23,42,.035);
+  --surface-2:rgba(15,23,42,.06);
+  --surface-3:rgba(15,23,42,.1);
+  --line:rgba(15,23,42,.1);
+  --line-2:rgba(15,23,42,.18);
+  --text:#0f172a;
+  --muted:#475569;
+  --faint:#5b6778;
+
+  /* deeper accents so gradient text and buttons keep contrast on white */
+  --accent:#047857;        --accent-rgb:4,120,87;
+  --accent-2-rgb:29,78,216;
+  --grad:linear-gradient(115deg,#047857,#0e7490 52%,#1d4ed8);
+  --on-accent:#ffffff;
+  --glow:rgba(4,120,87,.4);
+
+  --header-bg:rgba(255,255,255,.975);
+  --menu-bg:rgba(255,255,255,.98);
+  --input-bg:#ffffff;
+  --input-bg-focus:#ffffff;
+  --placeholder:#8a96a8;
+  --grid-line:rgba(15,23,42,.045);
+  --orb-1:rgba(16,185,129,.13);
+  --orb-2:rgba(59,130,246,.10);
+  --shadow-lg:0 30px 70px -40px rgba(15,23,42,.3);
+  --tooltip-bg:#ffffff;
+  --tooltip-shadow:0 12px 30px -12px rgba(15,23,42,.28);
+
+  --ok-text:#047857;   --ok-bg:rgba(4,120,87,.07);    --ok-line:rgba(4,120,87,.24);
+  --warn-text:#92400e; --warn-bg:rgba(217,119,6,.08); --warn-line:rgba(217,119,6,.28);
+  --err-text:#b91c1c;  --err-bg:rgba(220,38,38,.06);  --err-line:rgba(220,38,38,.24); --err-icon:#dc2626;
+  --info-text:#1e40af; --info-bg:rgba(37,99,235,.06); --info-line:rgba(37,99,235,.2);
+
+  --s1:#2a78d6; --s2:#eb6834; --s3:#1baf7a; --s-other:#a8b0bb;
+  --chart-grid:#eef1f4; --chart-axis:#d5dae1; --axis-text:#5b6778;
+}
+
+/* ---------------- base ---------------- */
+*,*::before,*::after{box-sizing:border-box}
+body{
+  margin:0;background:var(--bg);color:var(--text);
+  font-family:var(--font);font-size:16px;line-height:1.6;
+  -webkit-font-smoothing:antialiased;overflow-x:hidden;
+}
+h1,h2,h3,h4{margin:0;line-height:1.1;letter-spacing:-.025em;font-weight:600}
+p{margin:0}
+a{color:inherit;text-decoration:none}
+button,input,textarea{font:inherit;color:inherit}
+[hidden]{display:none!important}
+::selection{background:rgba(var(--accent-rgb),.25)}
+::-webkit-scrollbar{width:10px;height:10px}
+::-webkit-scrollbar-track{background:var(--bg)}
+::-webkit-scrollbar-thumb{background:var(--surface-3);border-radius:99px;border:3px solid var(--bg)}
+:focus-visible{outline:2px solid rgba(var(--accent-rgb),.7);outline-offset:2px}
+
+/* Arabic: cursive script breaks with negative tracking; needs more leading */
+:root[lang="ar"]{--font:"IBM Plex Sans Arabic","Inter",-apple-system,"Segoe UI",Tahoma,sans-serif}
+:root[lang="ar"] *{letter-spacing:0!important}
+:root[lang="ar"] h1,:root[lang="ar"] h2,:root[lang="ar"] h3{line-height:1.35}
+:root[lang="ar"] body{line-height:1.75}
+
+/* avoid showing French for a split second before a stored language is applied */
+html.i18n-pending body{visibility:hidden}
+
+/* smooth, time-boxed theme switch (class is removed after the transition) */
+html.theme-anim,html.theme-anim *,html.theme-anim *::before,html.theme-anim *::after{
+  transition:background-color .35s var(--ease),border-color .35s var(--ease),color .35s var(--ease),fill .35s var(--ease),box-shadow .35s var(--ease)!important;
+}
+
+.progress{
+  position:fixed;top:0;left:0;height:2px;width:100%;z-index:120;
+  transform:scaleX(0);transform-origin:0 50%;background:var(--grad);
+}
+[dir="rtl"] .progress{transform-origin:100% 50%}
+
+.gradient-text{background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+
+/* ---------------- buttons ---------------- */
+.btn{
+  position:relative;display:inline-flex;align-items:center;justify-content:center;gap:8px;
+  padding:11px 20px;border-radius:99px;border:1px solid transparent;
+  font-size:.9rem;font-weight:550;cursor:pointer;white-space:nowrap;overflow:hidden;
+  transition:transform .3s var(--ease),box-shadow .3s var(--ease),background .3s var(--ease),border-color .3s var(--ease),opacity .2s;
+}
+.btn:active{transform:translateY(1px) scale(.99)}
+.btn-primary{background:var(--grad);color:var(--on-accent);font-weight:650;box-shadow:0 6px 22px -8px var(--glow)}
+.btn-primary:hover{transform:translateY(-2px);box-shadow:0 14px 34px -10px var(--glow)}
+.btn-primary::after{
+  content:"";position:absolute;top:0;left:-130%;width:55%;height:100%;
+  background:linear-gradient(100deg,transparent,rgba(255,255,255,.4),transparent);
+  transform:skewX(-18deg);transition:left .75s var(--ease);
+}
+.btn-primary:hover::after{left:150%}
+.btn-ghost{background:var(--surface);border-color:var(--line);color:var(--text)}
+.btn-ghost:hover{background:var(--surface-2);border-color:var(--line-2);transform:translateY(-2px)}
+.btn-sm{padding:8px 16px;font-size:.845rem}
+.btn:disabled{opacity:.45;cursor:not-allowed;transform:none!important;box-shadow:none}
+
+/* ---------------- language + theme controls ---------------- */
+.prefs{display:flex;align-items:center;gap:6px}
+.icon-btn{
+  height:36px;min-width:36px;padding:0 10px;border-radius:11px;flex:none;
+  display:inline-flex;align-items:center;justify-content:center;gap:6px;
+  background:var(--surface);border:1px solid var(--line);color:var(--muted);cursor:pointer;
+  font-size:.78rem;font-weight:600;
+  transition:background .25s,border-color .25s,color .25s;
+}
+.icon-btn:hover,.icon-btn[aria-expanded="true"]{background:var(--surface-2);border-color:var(--line-2);color:var(--text)}
+.icon-btn svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.theme-btn{padding:0}
+.theme-btn .i-sun{display:none}
+:root[data-theme="dark"] .theme-btn .i-sun{display:block}
+:root[data-theme="dark"] .theme-btn .i-moon{display:none}
+.theme-btn svg{transition:transform .5s var(--ease)}
+.theme-btn:hover svg{transform:rotate(-20deg)}
+
+.lang-menu{position:relative}
+.lang-code{min-width:1.3em;text-align:center}
+.lang-list{
+  position:absolute;top:calc(100% + 8px);inset-inline-end:0;z-index:150;min-width:170px;
+  padding:6px;border-radius:14px;background:var(--menu-bg);border:1px solid var(--line-2);
+  box-shadow:var(--tooltip-shadow);
+  transform-origin:top;animation:menuIn .22s var(--ease);
+}
+[dir="rtl"] .lang-list{text-align:right}
+@keyframes menuIn{from{opacity:0;transform:translateY(-4px) scale(.98)}}
+.lang-list button{
+  display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;
+  padding:9px 12px;border:0;border-radius:9px;background:transparent;cursor:pointer;
+  font-size:.88rem;color:var(--text);text-align:start;
+}
+.lang-list button:hover,.lang-list button:focus-visible{background:var(--surface-2);outline:none}
+.lang-list button .lang-check{width:15px;height:15px;stroke:var(--accent);stroke-width:2.6;fill:none;stroke-linecap:round;stroke-linejoin:round;opacity:0}
+.lang-list button[aria-checked="true"] .lang-check{opacity:1}
+.lang-list button small{color:var(--faint);font-size:.72rem;font-weight:600}
+.lang-list button span:first-child{flex:1}
+.lang-list span[lang="ar"]{font-family:"IBM Plex Sans Arabic",var(--font)}
+
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.001ms!important;animation-delay:0s!important;animation-iteration-count:1!important;transition-duration:.001ms!important}
+}

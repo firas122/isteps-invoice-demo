@@ -1,0 +1,14 @@
+# Secrets — never commit
+.env
+
+# Local database + backups
+*.db
+invoices.backup-*.db
+
+# Python
+venv/
+__pycache__/
+*.pyc
+
+# IDE
+.idea/
