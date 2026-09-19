@@ -12,20 +12,62 @@ Run:
 Then open http://127.0.0.1:8000/ in a browser.
 """
 
+import base64
 import csv
 import io
 import os
+import secrets
 
 from fastapi import FastAPI, File, HTTPException, UploadFile
-from fastapi.responses import FileResponse, StreamingResponse
+from fastapi.responses import FileResponse, PlainTextResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from google.api_core.exceptions import DeadlineExceeded, ResourceExhausted
+from starlette.middleware.base import BaseHTTPMiddleware
 
 import storage
 from extractor import extract_invoice_data
 
 app = FastAPI(title="iSteps Invoice Extraction Demo")
 storage.init_db()
+
+DEMO_USERNAME = os.environ.get("DEMO_USERNAME")
+DEMO_PASSWORD = os.environ.get("DEMO_PASSWORD")
+
+
+class BasicAuthMiddleware(BaseHTTPMiddleware):
+    """
+    Gates every route (including static files) behind a single shared
+    username/password, set via DEMO_USERNAME / DEMO_PASSWORD env vars.
+    If either is unset, auth is skipped (so local dev without a .env
+    still works) — always set both before sharing a deployed URL.
+    """
+
+    async def dispatch(self, request, call_next):
+        if not DEMO_USERNAME or not DEMO_PASSWORD:
+            return await call_next(request)
+
+        auth_header = request.headers.get("Authorization")
+        if auth_header:
+            try:
+                scheme, credentials = auth_header.split(" ", 1)
+                if scheme.lower() == "basic":
+                    decoded = base64.b64decode(credentials).decode("utf-8")
+                    username, _, password = decoded.partition(":")
+                    user_ok = secrets.compare_digest(username, DEMO_USERNAME)
+                    pass_ok = secrets.compare_digest(password, DEMO_PASSWORD)
+                    if user_ok and pass_ok:
+                        return await call_next(request)
+            except Exception:
+                pass
+
+        return PlainTextResponse(
+            "Authentication required.",
+            status_code=401,
+            headers={"WWW-Authenticate": "Basic realm=\"iSteps demo\""},
+        )
+
+
+app.add_middleware(BasicAuthMiddleware)
 
 # Serve the simple frontend at "/"
 app.mount("/static", StaticFiles(directory="static"), name="static")
