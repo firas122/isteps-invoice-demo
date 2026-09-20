@@ -5,6 +5,9 @@
 *.db
 invoices.backup-*.db
 
+# Raw Gemini responses saved for debugging — contains real invoice content
+logs/
+
 # Python
 venv/
 __pycache__/

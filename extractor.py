@@ -6,6 +6,7 @@ Swap MODEL_NAME below if you're standardizing on a different Gemini
 version across projects.
 """
 
+import datetime
 import json
 import os
 import re
@@ -71,6 +72,39 @@ def _strip_markdown_fences(text: str) -> str:
     return text
 
 
+def _repair_trailing_commas(text: str) -> str:
+    """The single most common way an otherwise-complete Gemini response fails to
+    parse: a trailing comma before a closing bracket/brace, e.g. `[1, 2,]`."""
+    return re.sub(r",(\s*[\]}])", r"\1", text)
+
+
+LOG_DIR = os.path.join(os.path.dirname(__file__), "logs")
+
+
+def _save_raw_response(raw_text: str, error: json.JSONDecodeError) -> str | None:
+    """Write the full (untruncated) response to disk so a parse failure is
+    actually debuggable — invoice content, so this directory is gitignored."""
+    try:
+        os.makedirs(LOG_DIR, exist_ok=True)
+        stamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+        path = os.path.join(LOG_DIR, f"gemini_raw_{stamp}.txt")
+        with open(path, "w", encoding="utf-8") as f:
+            f.write(f"# model: {MODEL_NAME}\n# json error: {error}\n\n{raw_text}")
+        return path
+    except OSError:
+        return None
+
+
+def _error_excerpt(text: str, error: json.JSONDecodeError, radius: int = 250) -> str:
+    """Show the text AROUND the actual parse failure, not just the start of the
+    response — a blind head-truncation can (and did) hide the real problem."""
+    pos = min(error.pos, len(text))
+    start, end = max(0, pos - radius), min(len(text), pos + radius)
+    prefix = "…" if start > 0 else ""
+    suffix = "…" if end < len(text) else ""
+    return f"{prefix}{text[start:end]}{suffix}"
+
+
 def extract_invoice_data(file_bytes: bytes, mime_type: str) -> dict:
     """
     Sends the invoice file to Gemini vision and returns parsed structured
@@ -92,14 +126,25 @@ def extract_invoice_data(file_bytes: bytes, mime_type: str) -> dict:
         request_options={"timeout": REQUEST_TIMEOUT},
     )
 
+    candidate = response.candidates[0] if response.candidates else None
+    finish_reason = getattr(candidate, "finish_reason", None)
+
     raw_text = response.text
     cleaned = _strip_markdown_fences(raw_text)
 
     try:
-        data = json.loads(cleaned)
-    except json.JSONDecodeError as e:
-        raise ValueError(
-            f"Gemini did not return valid JSON. Raw output: {raw_text[:500]}"
-        ) from e
+        return json.loads(cleaned)
+    except json.JSONDecodeError as first_error:
+        try:
+            return json.loads(_repair_trailing_commas(cleaned))
+        except json.JSONDecodeError:
+            pass
 
-    return data
+        log_path = _save_raw_response(raw_text, first_error)
+        reason_name = getattr(finish_reason, "name", None)
+        stopped_early = f" Gemini a interrompu sa réponse ({reason_name})." if reason_name and reason_name != "STOP" else ""
+        logged = f" Réponse complète : {log_path}." if log_path else ""
+        raise ValueError(
+            f"Gemini n'a pas renvoyé de JSON valide ({first_error}).{stopped_early}{logged} "
+            f"Autour de l'erreur : {_error_excerpt(cleaned, first_error)}"
+        ) from first_error
