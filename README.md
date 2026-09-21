@@ -31,7 +31,8 @@ export CSV.
 ```
 isteps-invoice-demo/
 ├── main.py                  FastAPI app: /extract, /export-csv, /dashboard, /api/analytics
-├── extractor.py             Gemini-vision call + prompt + JSON parsing
+├── extractor.py             Gemini-vision call + prompt + JSON parsing + OCR fallback wiring
+├── ocr_extractor.py         Local OCR fallback (Tesseract + regex), used when Gemini fails/quota
 ├── storage.py               SQLite store + analytics aggregations
 ├── seed_demo_data.py        Optional fictional sample invoices for the dashboard
 ├── static/index.html        Landing page + upload UI, results, CSV export
@@ -44,6 +45,29 @@ isteps-invoice-demo/
 ├── requirements.txt
 └── .env.example
 ```
+
+## Fallback extraction (Gemini down or over quota)
+
+`extract_invoice_data()` in `extractor.py` tries Gemini first; if that
+raises for any reason (quota exhausted, timeout, outage, unparseable
+response), it automatically retries with a local, offline OCR pipeline
+(`ocr_extractor.py`): Tesseract OCR over the rendered page(s), then
+regex heuristics for `fournisseur` / `date` / `numero_facture` /
+`montant_ht` / `montant_tva` / `montant_timbre` / `montant_ttc`.
+
+It's free and has no rate limit (nothing external to run out of), but
+much less accurate than Gemini — no line-item table parsing (`lignes`
+stays empty) and the supplier name is a best guess. The result is
+tagged `"methode_extraction": "ocr_local"` and forced to
+`"confiance": "basse"`, and the UI shows an amber "fallback extraction"
+badge next to the confidence badge so it's never mistaken for a normal
+Gemini result. If OCR also fails, the original Gemini error is raised
+(so the existing 429/504 handling in `main.py` still applies).
+
+Requires the Tesseract OCR engine on the machine — see `.env.example`
+for the Windows install link and `TESSERACT_CMD`/`TESSERACT_LANG`; the
+Dockerfile already installs it (`tesseract-ocr` + `tesseract-ocr-fra`)
+for Railway.
 
 ## Languages & themes
 
@@ -107,7 +131,9 @@ in `storage.py`; the API and dashboard stay the same.
   local demo, not for anything deployed and shared with a client)
 - Add logging of raw Gemini responses somewhere, so failed extractions
   are debuggable
-- Add retry/timeout handling around the Gemini call
+- Add retry/timeout handling around the Gemini call itself (there's now
+  an OCR fallback for when Gemini fails outright — see "Fallback
+  extraction" above — but no retry of Gemini before falling back)
 - Decide on the **hybrid migration path**: this demo uses Gemini-vision
   for speed. If/when Sensible.so's structured extraction proves more
   accurate/reliable for a given doc type in production, swap the

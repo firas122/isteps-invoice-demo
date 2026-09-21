@@ -107,10 +107,39 @@ def _error_excerpt(text: str, error: json.JSONDecodeError, radius: int = 250) ->
 
 def extract_invoice_data(file_bytes: bytes, mime_type: str) -> dict:
     """
-    Sends the invoice file to Gemini vision and returns parsed structured
-    data. Raises on API failure or unparseable response — the caller
-    (main.py) converts that into an HTTP 500 for now.
+    Sends the invoice file to Gemini vision and, if that fails for any
+    reason (quota exhausted, timeout, outage, bad response), falls back
+    to local OCR (see ocr_extractor.py) so the demo keeps working.
 
+    If the OCR fallback also fails, the original Gemini error is raised
+    (main.py maps ResourceExhausted/DeadlineExceeded to specific HTTP
+    codes, so that mapping stays meaningful) — the OCR failure itself is
+    only printed, not raised, since it's a bonus, not the primary path.
+    """
+    try:
+        result = _extract_with_gemini(file_bytes, mime_type)
+        result["methode_extraction"] = "gemini"
+        return result
+    except Exception as gemini_error:
+        print(f"[iSteps] Gemini extraction failed ({gemini_error}); trying local OCR fallback.")
+        try:
+            from ocr_extractor import extract_invoice_data_ocr
+
+            result = extract_invoice_data_ocr(file_bytes, mime_type)
+        except Exception as ocr_error:
+            print(f"[iSteps] OCR fallback also failed ({ocr_error}); surfacing the Gemini error.")
+            raise gemini_error from ocr_error
+
+        result["methode_extraction"] = "ocr_local"
+        result["avertissement"] = (
+            f"Gemini indisponible ({gemini_error}) — extraction de secours par OCR local, "
+            f"moins fiable (pas de lecture des lignes de détail)."
+        )
+        return result
+
+
+def _extract_with_gemini(file_bytes: bytes, mime_type: str) -> dict:
+    """
     TODO before any real client pilot:
       - log raw model output somewhere for debugging misses
       - validate numeric fields (Gemini can return them as strings)
