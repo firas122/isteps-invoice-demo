@@ -245,6 +245,7 @@ input[type=file]{display:none}
 .badge.haute{background:var(--ok-bg);color:var(--ok-text);border:1px solid var(--ok-line)}
 .badge.moyenne{background:var(--warn-bg);color:var(--warn-text);border:1px solid var(--warn-line)}
 .badge.basse{background:var(--err-bg);color:var(--err-text);border:1px solid var(--err-line)}
+.badge.fallback{background:var(--warn-bg);color:var(--warn-text);border:1px solid var(--warn-line)}
 
 .amounts{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:12px}
 .amt{position:relative;padding:18px;border-radius:var(--r);background:var(--surface);border:1px solid var(--line);overflow:hidden}
@@ -551,7 +552,7 @@ footer{position:relative;z-index:1;border-top:1px solid var(--line);padding:38px
                   <div class="m" id="resMeta">—</div>
                 </div>
               </div>
-              <div id="confidence"></div>
+              <div id="confidence" style="display:flex;flex-wrap:wrap;gap:8px"></div>
             </div>
 
             <div class="amounts">
@@ -989,8 +990,11 @@ function render(data, file){
   });
 
   const conf = String(data.confiance || '').toLowerCase();
-  document.getElementById('confidence').innerHTML = ['haute','moyenne','basse'].includes(conf)
+  const confBadge = ['haute','moyenne','basse'].includes(conf)
     ? `<span class="badge ${conf}"><i></i>${esc(t('conf.' + conf))}</span>` : '';
+  const fallbackBadge = data.methode_extraction === 'ocr_local'
+    ? `<span class="badge fallback"><i></i>${esc(t('fallback.ocr'))}</span>` : '';
+  document.getElementById('confidence').innerHTML = confBadge + fallbackBadge;
 
   document.getElementById('vHT').innerHTML     = money(data.montant_ht);
   document.getElementById('vTVA').innerHTML    = money(data.montant_tva);

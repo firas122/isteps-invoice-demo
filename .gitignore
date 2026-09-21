@@ -8,6 +8,11 @@ invoices.backup-*.db
 # Raw Gemini responses saved for debugging — contains real invoice content
 logs/
 
+# Downloaded Tesseract language packs for local dev without admin rights
+# (see TESSDATA_PREFIX in .env.example) — not needed in Docker, which
+# installs tesseract-ocr-fra as a system package instead
+tessdata_local/
+
 # Python
 venv/
 __pycache__/
