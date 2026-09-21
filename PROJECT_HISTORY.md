@@ -33,7 +33,7 @@ a client meeting, not for production use — see "Known gaps" below.
 
 | Date | Commit | Summary |
 |---|---|---|
-| 2026-09-21 | _(pending)_ | Add local OCR fallback extraction for when Gemini fails/hits quota |
+| 2026-09-21 | `8077a28` | Add local OCR fallback extraction for when Gemini fails/hits quota |
 | 2026-09-20 | `9b59462` | Fix misleading JSON-parse errors from Gemini responses |
 | 2026-09-19 | `3e20188` | Add Timbre fiscal to extraction and consistency check |
 | 2026-09-19 | `d97c095` | Consistent "iSteps Factures" branding across titles and README |
