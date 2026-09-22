@@ -1,6 +1,6 @@
 # iSteps Factures — Project History & Status
 
-_Last updated: 2026-09-21_
+_Last updated: 2026-09-22_
 
 ## Summary
 
@@ -12,7 +12,7 @@ a client meeting, not for production use — see "Known gaps" below.
 
 ## Status
 
-- Branch: `main`, working tree clean, 7 commits total.
+- Branch: `main`, working tree clean, 9 commits total.
 - Core flow works end-to-end: upload → extraction → review → CSV export.
 - **New:** if Gemini fails outright (quota exhausted, timeout, outage,
   unparseable response), `extract_invoice_data()` automatically falls
@@ -28,11 +28,15 @@ a client meeting, not for production use — see "Known gaps" below.
 - Basic auth gates the deployed instance (`DEMO_USERNAME`/`DEMO_PASSWORD`).
 - Deployable to Railway via `Dockerfile` / `railway.json`.
 - FR/EN/AR UI with RTL support and light/dark theme.
+- Contact section on the landing page now shows a real phone number
+  (was a `+216 00 000 000` placeholder).
 
 ## Commit history
 
 | Date | Commit | Summary |
 |---|---|---|
+| 2026-09-22 | `f42fa5a` | Replace placeholder phone number with real contact number |
+| 2026-09-21 | `a2bd592` | Fill in commit hash for OCR fallback entry in PROJECT_HISTORY.md |
 | 2026-09-21 | `8077a28` | Add local OCR fallback extraction for when Gemini fails/hits quota |
 | 2026-09-20 | `9b59462` | Fix misleading JSON-parse errors from Gemini responses |
 | 2026-09-19 | `3e20188` | Add Timbre fiscal to extraction and consistency check |
