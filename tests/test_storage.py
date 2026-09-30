@@ -91,6 +91,21 @@ def test_delete_invoice():
     assert storage.delete_invoice(iid) is False  # already gone
 
 
+def test_reset_all_wipes_invoices_and_clients_but_keeps_schema():
+    c = storage.create_client("Client A")
+    storage.save_invoice(_sample(), filename="f.pdf", client_id=c["id"])
+    storage.save_invoice(_sample(numero_facture="F-2"), filename="g.pdf")
+
+    counts = storage.reset_all()
+    assert counts == {"invoices_deleted": 2, "clients_deleted": 1}
+    assert storage.list_invoices()["total"] == 0
+    assert storage.list_clients() == []
+
+    # schema still intact — a fresh save right after reset must still work
+    new_id = storage.save_invoice(_sample(), filename="h.pdf")
+    assert storage.get_invoice(new_id) is not None
+
+
 def test_review_queue_only_lists_unreviewed_low_or_medium_confidence():
     high = storage.save_invoice(_sample(confiance="haute"), filename="a.pdf")
     low = storage.save_invoice(_sample(confiance="basse", numero_facture="F-101"), filename="b.pdf")

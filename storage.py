@@ -243,6 +243,16 @@ def clear_demo_data():
         return conn.execute("DELETE FROM invoices WHERE source = 'demo'").rowcount
 
 
+def reset_all():
+    """Wipes every invoice and client — used by the guarded /admin/reset
+    endpoint to give a demo/pilot a clean slate before a walkthrough or
+    recording. Schema stays intact; only the data is cleared."""
+    with _connect() as conn:
+        invoices_deleted = conn.execute("DELETE FROM invoices").rowcount
+        clients_deleted = conn.execute("DELETE FROM clients").rowcount
+        return {"invoices_deleted": invoices_deleted, "clients_deleted": clients_deleted}
+
+
 def get_invoice(invoice_id):
     with _connect() as conn:
         row = conn.execute("SELECT * FROM invoices WHERE id = ?", (invoice_id,)).fetchone()

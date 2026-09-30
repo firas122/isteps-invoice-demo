@@ -164,6 +164,23 @@ A couple of things extraction now does automatically:
 
 `GET /health` returns `{"status": "ok"}` for Railway's health checks.
 
+### Resetting a demo instance
+
+`POST /admin/reset` wipes every invoice, client, and stored original file —
+for a clean slate before a client walkthrough or a screen recording. It's
+refused (403) unless `ADMIN_RESET_TOKEN` is set on the server, and even then
+requires that exact token, so it's a separate secret from `DEMO_PASSWORD`:
+
+```bash
+# set ADMIN_RESET_TOKEN in your .env (local) or Railway env vars (hosted)
+curl -X POST https://your-app.up.railway.app/admin/reset \
+  -H "X-Admin-Token: your-token-here"
+```
+
+Locally, resetting is just as easy without the endpoint — stop the server,
+delete `invoices.db` and everything in `uploads/`, then start it again
+(`storage.init_db()` recreates the empty schema automatically).
+
 ## Running tests
 
 ```bash

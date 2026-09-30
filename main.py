@@ -19,7 +19,7 @@ import os
 import secrets
 import uuid
 
-from fastapi import FastAPI, File, Form, HTTPException, UploadFile
+from fastapi import FastAPI, File, Form, Header, HTTPException, UploadFile
 from fastapi.responses import FileResponse, PlainTextResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from google.api_core.exceptions import DeadlineExceeded, ResourceExhausted
@@ -33,6 +33,11 @@ storage.init_db()
 
 DEMO_USERNAME = os.environ.get("DEMO_USERNAME")
 DEMO_PASSWORD = os.environ.get("DEMO_PASSWORD")
+
+# A second, separate secret from DEMO_PASSWORD — /admin/reset wipes every
+# invoice and client, so it stays refused (403) unless this is explicitly
+# set, even if basic auth is off or shared with a client for a demo.
+ADMIN_RESET_TOKEN = os.environ.get("ADMIN_RESET_TOKEN")
 
 # Original uploads are kept so a reviewer can pull the source document back up
 # next to a correction — gitignored, and a demo/pilot concern to eventually
@@ -229,6 +234,32 @@ async def add_client(payload: dict):
 @app.get("/health")
 async def health():
     return {"status": "ok"}
+
+
+@app.post("/admin/reset")
+async def admin_reset(payload: dict = None, x_admin_token: str | None = Header(None)):
+    """
+    Wipes every invoice and client (and their stored original files) —
+    for resetting a demo/pilot instance to a clean slate before a
+    walkthrough or recording. Refused unless ADMIN_RESET_TOKEN is set on
+    the server AND the caller supplies the matching token, either as the
+    X-Admin-Token header or {"token": "..."} in the JSON body.
+    """
+    if not ADMIN_RESET_TOKEN:
+        raise HTTPException(status_code=403, detail="Admin reset is disabled (ADMIN_RESET_TOKEN not set).")
+    token = x_admin_token or (payload or {}).get("token")
+    if not token or not secrets.compare_digest(token, ADMIN_RESET_TOKEN):
+        raise HTTPException(status_code=403, detail="Invalid or missing admin token.")
+
+    counts = storage.reset_all()
+    files_deleted = 0
+    for name in os.listdir(UPLOADS_DIR):
+        try:
+            os.remove(os.path.join(UPLOADS_DIR, name))
+            files_deleted += 1
+        except OSError:
+            pass
+    return {"ok": True, **counts, "files_deleted": files_deleted}
 
 
 @app.get("/dashboard")

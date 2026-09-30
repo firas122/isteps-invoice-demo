@@ -25,6 +25,59 @@ def test_pages_serve(api_client):
         assert "text/html" in res.headers["content-type"]
 
 
+# ----------------------------------------------------------------- admin reset
+
+def test_admin_reset_disabled_when_token_unset(api_client, monkeypatch):
+    monkeypatch.setattr(main, "ADMIN_RESET_TOKEN", None)
+    res = api_client.post("/admin/reset", json={"token": "anything"})
+    assert res.status_code == 403
+
+
+def test_admin_reset_rejects_wrong_token(api_client, monkeypatch):
+    monkeypatch.setattr(main, "ADMIN_RESET_TOKEN", "correct-token")
+    res = api_client.post("/admin/reset", json={"token": "wrong-token"})
+    assert res.status_code == 403
+
+
+def test_admin_reset_rejects_missing_token(api_client, monkeypatch):
+    monkeypatch.setattr(main, "ADMIN_RESET_TOKEN", "correct-token")
+    res = api_client.post("/admin/reset", json={})
+    assert res.status_code == 403
+
+
+def test_admin_reset_wipes_data_with_correct_token_via_body(api_client, monkeypatch):
+    monkeypatch.setattr(main, "ADMIN_RESET_TOKEN", "correct-token")
+    storage.save_invoice({"fournisseur": "A", "confiance": "haute", "lignes": []}, filename="a.pdf")
+    storage.create_client("Some Client")
+
+    res = api_client.post("/admin/reset", json={"token": "correct-token"})
+    assert res.status_code == 200
+    body = res.json()
+    assert body["invoices_deleted"] == 1
+    assert body["clients_deleted"] == 1
+    assert storage.list_invoices()["total"] == 0
+    assert storage.list_clients() == []
+
+
+def test_admin_reset_accepts_token_via_header(api_client, monkeypatch):
+    monkeypatch.setattr(main, "ADMIN_RESET_TOKEN", "correct-token")
+    res = api_client.post("/admin/reset", headers={"X-Admin-Token": "correct-token"}, json={})
+    assert res.status_code == 200
+
+
+def test_admin_reset_also_removes_uploaded_files(api_client, monkeypatch):
+    monkeypatch.setattr(main, "ADMIN_RESET_TOKEN", "correct-token")
+    os.makedirs(main.UPLOADS_DIR, exist_ok=True)
+    stray = os.path.join(main.UPLOADS_DIR, "stray-file.pdf")
+    with open(stray, "wb") as f:
+        f.write(b"data")
+
+    res = api_client.post("/admin/reset", json={"token": "correct-token"})
+    assert res.status_code == 200
+    assert res.json()["files_deleted"] >= 1
+    assert not os.path.isfile(stray)
+
+
 # --------------------------------------------------------------------- clients
 
 def test_create_and_list_clients(api_client):
