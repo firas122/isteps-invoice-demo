@@ -1156,7 +1156,7 @@ function buildDocCard(doc, idx){
     dupWarning.hidden = false;
     q('duplicateText').textContent = t('inv.duplicate', {
       number: doc.duplicate_of.numero_facture || '—',
-      amount: money(doc.duplicate_of.montant_ttc).replace(/<[^>]+>/g, ''),
+      amount: money(doc.duplicate_of.montant_ttc).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim(),
     });
   } else {
     dupWarning.hidden = true;
