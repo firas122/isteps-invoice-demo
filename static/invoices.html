@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="fr" dir="ltr" data-theme="dark" data-i18n-title="inv.meta.title">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>iSteps Factures — Toutes les factures</title>
+<meta name="description" content="Recherchez, filtrez et gérez toutes les factures extraites." data-i18n-attr="content:inv.meta.desc">
+<script src="/static/prefs.js"></script>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%2306080b'/%3E%3Cpath d='M9 22V10h7a4 4 0 0 1 0 8h-7' stroke='%232fe0a0' stroke-width='2.4' fill='none' stroke-linecap='round'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/theme.css">
+<style>
+body{line-height:1.55}
+.ambient{
+  position:absolute;top:0;left:0;right:0;height:900px;z-index:0;pointer-events:none;overflow:hidden;
+  background:
+    radial-gradient(700px 500px at 8% -10%,var(--orb-1),transparent 70%),
+    radial-gradient(600px 460px at 100% 0%,var(--orb-2),transparent 70%);
+}
+
+/* ---------------- header (shared skeleton with dashboard.html) ---------------- */
+.site-header{position:fixed;top:0;left:0;right:0;z-index:100;height:var(--header-h)}
+.site-header::before{content:"";position:absolute;inset:0;background:var(--header-bg);opacity:0;transition:opacity .4s var(--ease)}
+.site-header.scrolled::before{opacity:1}
+.site-header::after{content:"";position:absolute;left:0;right:0;bottom:0;height:1px;background:linear-gradient(90deg,transparent,var(--line-2) 18%,var(--line-2) 82%,transparent);opacity:0;transition:opacity .4s}
+.site-header.scrolled::after{opacity:1}
+.header-inner{position:relative;height:100%;max-width:var(--maxw);margin:0 auto;padding:0 28px;display:flex;align-items:center;justify-content:space-between;gap:20px}
+.brand{display:flex;align-items:center;gap:10px;font-weight:600;letter-spacing:-.02em;font-size:1.02rem;flex:none;white-space:nowrap}
+.brand-mark{width:30px;height:30px;border-radius:9px;display:grid;place-items:center;flex:none;background:var(--grad);color:var(--on-accent);font-weight:700;font-size:.92rem}
+.brand em{font-style:normal;color:var(--muted);font-weight:400}
+.nav{display:flex;gap:2px}
+.nav a{padding:8px 14px;border-radius:99px;font-size:.885rem;font-weight:500;color:var(--muted);border:1px solid transparent;transition:color .25s;white-space:nowrap}
+.nav a:hover{color:var(--text)}
+.nav a.active{color:var(--text);background:var(--surface-2);border-color:var(--line)}
+.header-actions{display:flex;align-items:center;gap:8px}
+.mobile-home{display:none}
+
+/* ---------------- page ---------------- */
+main{position:relative;z-index:1;max-width:var(--maxw);margin:0 auto;padding:calc(var(--header-h) + 48px) 28px 90px}
+.page-head{margin-bottom:28px}
+.tag{font-size:.75rem;font-weight:600;letter-spacing:.14em;text-transform:uppercase;background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+.page-head h1{font-size:clamp(1.9rem,4vw,2.6rem);margin:10px 0 8px}
+.page-head p{color:var(--muted);max-width:62ch}
+
+.filters{display:flex;align-items:flex-end;gap:12px;flex-wrap:wrap;margin-bottom:18px}
+.fld{display:flex;flex-direction:column;gap:5px}
+.fld label{font-size:.72rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--axis-text)}
+.filters input,.filters select{
+  font:inherit;font-size:.84rem;color:var(--text);background:var(--input-bg);
+  border:1px solid var(--line-2);border-radius:var(--r-sm);padding:7px 12px;
+}
+.filters input:focus,.filters select:focus{outline:none;border-color:rgba(var(--accent-rgb),.55)}
+.filters input[type="search"]{min-width:220px}
+.reset-btn{border:1px solid var(--line-2);background:transparent;color:var(--muted);border-radius:var(--r-sm);padding:8px 14px;font:inherit;font-size:.82rem;cursor:pointer}
+.reset-btn:hover{color:var(--text);background:var(--surface)}
+
+.notice{display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:var(--r);margin-bottom:18px;background:var(--info-bg);border:1px solid var(--info-line);font-size:.85rem;color:var(--info-text)}
+.notice.error{background:var(--err-bg);border-color:var(--err-line);color:var(--err-text)}
+
+.card{min-width:0;padding:0;border-radius:var(--r-lg);background:var(--card);border:1px solid var(--line);overflow:hidden;transition:opacity .25s}
+.card.loading{opacity:.5;pointer-events:none}
+.table-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:.84rem}
+th{text-align:start;padding:12px 16px;font-size:.7rem;text-transform:uppercase;letter-spacing:.08em;color:var(--axis-text);font-weight:600;background:var(--surface);border-bottom:1px solid var(--line);white-space:nowrap}
+td{padding:11px 16px;border-bottom:1px solid var(--line);white-space:nowrap}
+tbody tr:last-child td{border-bottom:0}
+tbody tr:hover{background:var(--surface)}
+th.num,td.num{text-align:end;font-variant-numeric:tabular-nums}
+.badge{display:inline-flex;align-items:center;gap:6px;padding:4px 11px;border-radius:99px;font-size:.72rem;font-weight:600}
+.badge i{width:6px;height:6px;border-radius:50%;background:currentColor}
+.badge.haute{background:var(--ok-bg);color:var(--ok-text);border:1px solid var(--ok-line)}
+.badge.moyenne{background:var(--warn-bg);color:var(--warn-text);border:1px solid var(--warn-line)}
+.badge.basse{background:var(--err-bg);color:var(--err-text);border:1px solid var(--err-line)}
+.link-btn{border:0;background:transparent;color:var(--accent);font:inherit;font-size:.82rem;cursor:pointer;padding:0;text-decoration:none}
+.link-btn:hover{text-decoration:underline}
+.danger-btn{border:1px solid var(--err-line);background:transparent;color:var(--err-text);border-radius:99px;padding:5px 12px;font:inherit;font-size:.78rem;cursor:pointer;white-space:nowrap}
+.danger-btn:hover{background:var(--err-bg)}
+.danger-btn.confirm{background:var(--err-bg);font-weight:600}
+.row-actions{display:flex;gap:10px;align-items:center;justify-content:flex-end}
+.empty-state{text-align:center;padding:64px 24px}
+.empty-state h2{font-size:1.15rem;margin-bottom:8px}
+.empty-state p{color:var(--muted)}
+.pager{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 16px;border-top:1px solid var(--line);font-size:.82rem;color:var(--muted)}
+.pager-btns{display:flex;gap:8px}
+.pager button{border:1px solid var(--line-2);background:var(--surface);color:var(--text);border-radius:8px;padding:6px 12px;font:inherit;font-size:.8rem;cursor:pointer}
+.pager button:disabled{opacity:.45;cursor:default}
+.dup-badge{display:inline-flex;align-items:center;gap:5px;font-size:.75rem;color:var(--warn-text)}
+
+.fade-in{animation:fadeUp .6s var(--ease) both}
+@keyframes fadeUp{from{opacity:0;transform:translateY(10px)}}
+
+@media (max-width:1020px){
+  .brand em{display:none}
+  .header-actions .btn{display:none}
+}
+@media (max-width:780px){
+  .nav{display:none}
+  .mobile-home{display:inline-flex}
+  .header-inner{padding:0 20px}
+  main{padding:calc(var(--header-h) + 28px) 20px 64px}
+}
+</style>
+</head>
+<body>
+<div class="ambient"></div>
+<div class="progress" id="progress"></div>
+
+<header class="site-header" id="header">
+  <div class="header-inner">
+    <a href="/" class="brand"><span class="brand-mark">iS</span><span>iSteps <em data-i18n="brand.suffix">/ Factures</em></span></a>
+    <nav class="nav" data-i18n-attr="aria-label:nav.aria">
+      <a href="/" data-i18n="nav.home">Accueil</a>
+      <a href="/#demo" data-i18n="nav.demo">Démo</a>
+      <a href="/dashboard" data-i18n="nav.dashboard">Tableau de bord</a>
+      <a href="/invoices" class="active" aria-current="page" data-i18n="nav.invoices">Factures</a>
+    </nav>
+    <div class="header-actions">
+      <div class="prefs" data-prefs></div>
+      <a href="/#demo" class="btn btn-primary btn-sm" data-i18n="cta.extract">Extraire une facture</a>
+      <a href="/" class="btn btn-ghost btn-sm mobile-home" data-i18n="nav.home">Accueil</a>
+    </div>
+  </div>
+</header>
+
+<main>
+  <div class="page-head">
+    <span class="tag" data-i18n="inv.tag">Toutes les factures</span>
+    <h1 data-i18n="inv.title">Factures</h1>
+    <p data-i18n="inv.sub">Recherchez, filtrez et gérez toutes les factures extraites, tous clients confondus ou pour un seul.</p>
+  </div>
+
+  <div class="filters">
+    <div class="fld">
+      <label for="fClient" data-i18n="dash.client">Client</label>
+      <select id="fClient"></select>
+    </div>
+    <div class="fld">
+      <label for="fSearch" data-i18n="inv.search">Fournisseur / N° facture</label>
+      <input type="search" id="fSearch" data-i18n-attr="placeholder:inv.searchPh">
+    </div>
+    <div class="fld">
+      <label for="fConf" data-i18n="col.confidence">Confiance</label>
+      <select id="fConf">
+        <option value="" data-i18n="inv.allConfidence">Toutes</option>
+        <option value="haute" data-i18n="conf.haute">Confiance élevée</option>
+        <option value="moyenne" data-i18n="conf.moyenne">Confiance moyenne</option>
+        <option value="basse" data-i18n="conf.basse">Confiance faible</option>
+      </select>
+    </div>
+    <div class="fld">
+      <label for="fFrom" data-i18n="inv.from">Du</label>
+      <input type="date" id="fFrom">
+    </div>
+    <div class="fld">
+      <label for="fTo" data-i18n="inv.to">Au</label>
+      <input type="date" id="fTo">
+    </div>
+    <button type="button" class="reset-btn" id="resetFilters" data-i18n="inv.resetFilters">Réinitialiser</button>
+  </div>
+
+  <div class="notice error" id="errorNotice" hidden role="alert">
+    <span id="errorText"></span>
+  </div>
+
+  <div class="card" id="card">
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th data-i18n="col.date">Date</th>
+            <th data-i18n="col.supplier">Fournisseur</th>
+            <th data-i18n="col.number">N° facture</th>
+            <th data-i18n="dash.client">Client</th>
+            <th class="num" data-i18n="col.ttc">TTC</th>
+            <th data-i18n="col.confidence">Confiance</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </div>
+    <div class="empty-state" id="empty" hidden>
+      <h2 id="emptyTitle"></h2>
+      <p id="emptyText"></p>
+    </div>
+    <div class="pager" id="pager" hidden>
+      <span id="pagerLabel"></span>
+      <div class="pager-btns">
+        <button type="button" id="prevPage" data-i18n="inv.prev">Précédent</button>
+        <button type="button" id="nextPage" data-i18n="inv.next">Suivant</button>
+      </div>
+    </div>
+  </div>
+</main>
+
+<script src="/static/i18n.js"></script>
+<script src="/static/site.js"></script>
+<script src="/static/smooth-scroll.js"></script>
+<script>
+const { t } = I18N;
+const $ = id => document.getElementById(id);
+
+const header = $('header');
+const progress = $('progress');
+const smooth = createSmoothScroll({ onFrame: () => onScroll() });
+function onScroll(){
+  header.classList.toggle('scrolled', scrollY > 8);
+  const max = smooth.maxScroll;
+  progress.style.transform = `scaleX(${max > 0 ? Math.min(scrollY / max, 1) : 0})`;
+}
+addEventListener('scroll', () => requestAnimationFrame(onScroll), { passive:true });
+onScroll();
+
+let nf, nf0;
+function makeFormatters(){
+  nf = new Intl.NumberFormat(I18N.locale, { minimumFractionDigits:3, maximumFractionDigits:3 });
+  nf0 = new Intl.NumberFormat(I18N.locale, { maximumFractionDigits:0 });
+}
+makeFormatters();
+const money = v => v == null ? '—' : `${nf.format(v)} ${t('cur')}`;
+const fmtDate = iso => iso ? iso.split('-').reverse().join('/') : '—';
+
+const PAGE_SIZE = 20;
+const state = { page:0, total:0, clientId:'', q:'', confiance:'', dateFrom:'', dateTo:'' };
+let searchDebounce = null;
+
+async function loadClientOptions(){
+  try {
+    const res = await fetch('/clients');
+    if (!res.ok) return;
+    const data = await res.json();
+    const sel = $('fClient');
+    sel.innerHTML = `<option value="">${t('dash.clientAll')}</option>` +
+      (data.clients || []).map(c => `<option value="${c.id}">${c.name.replace(/</g, '&lt;')}</option>`).join('');
+  } catch (e) { /* non-critical */ }
+}
+
+function rowHtml(inv){
+  const conf = (inv.confiance || '').toLowerCase();
+  const badge = ['haute','moyenne','basse'].includes(conf)
+    ? `<span class="badge ${conf}"><i></i>${t('conf.' + conf)}</span>` : '—';
+  const fileLink = inv.file_path
+    ? `<a class="link-btn" href="/invoices/${inv.id}/file" target="_blank" rel="noopener">${t('inv.viewOriginal')}</a>` : '';
+  return `
+    <tr data-id="${inv.id}">
+      <td>${fmtDate(inv.eff_date)}</td>
+      <td dir="auto">${inv.fournisseur ? esc(inv.fournisseur) : '—'}</td>
+      <td>${inv.numero_facture ? esc(inv.numero_facture) : '—'}</td>
+      <td dir="auto">${inv.client_name ? esc(inv.client_name) : '—'}</td>
+      <td class="num">${money(inv.montant_ttc)}</td>
+      <td>${badge}</td>
+      <td>
+        <div class="row-actions">
+          ${fileLink}
+          <button type="button" class="danger-btn" data-action="delete" data-id="${inv.id}">${t('inv.delete')}</button>
+        </div>
+      </td>
+    </tr>`;
+}
+const esc = v => String(v).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+async function load(){
+  const card = $('card');
+  card.classList.add('loading');
+  const params = new URLSearchParams({ limit: PAGE_SIZE, offset: state.page * PAGE_SIZE });
+  if (state.clientId) params.set('client_id', state.clientId);
+  if (state.q) params.set('q', state.q);
+  if (state.confiance) params.set('confiance', state.confiance);
+  if (state.dateFrom) params.set('date_from', state.dateFrom);
+  if (state.dateTo) params.set('date_to', state.dateTo);
+
+  try {
+    const res = await fetch(`/api/invoices?${params}`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    state.total = data.total;
+    $('errorNotice').hidden = true;
+    $('rows').innerHTML = data.invoices.map(rowHtml).join('');
+    const empty = data.invoices.length === 0;
+    $('empty').hidden = !empty;
+    document.querySelector('.table-wrap').hidden = empty;
+    if (empty) {
+      const filtered = state.clientId || state.q || state.confiance || state.dateFrom || state.dateTo;
+      $('emptyTitle').textContent = t(filtered ? 'inv.emptyFiltered.title' : 'inv.emptyAll.title');
+      $('emptyText').textContent = t(filtered ? 'inv.emptyFiltered.text' : 'inv.emptyAll.text');
+    }
+    const pager = $('pager');
+    pager.hidden = state.total === 0;
+    const from = state.page * PAGE_SIZE + 1;
+    const to = Math.min(state.total, from + data.invoices.length - 1);
+    $('pagerLabel').textContent = t('inv.pagerLabel', { from, to, total: state.total });
+    $('prevPage').disabled = state.page === 0;
+    $('nextPage').disabled = to >= state.total;
+  } catch (e) {
+    $('errorText').textContent = t('dash.loadError', { msg: e.message });
+    $('errorNotice').hidden = false;
+  } finally {
+    card.classList.remove('loading');
+  }
+}
+
+$('rows').addEventListener('click', async e => {
+  const btn = e.target.closest('button[data-action="delete"]');
+  if (!btn) return;
+  if (!btn.classList.contains('confirm')) {
+    btn.classList.add('confirm');
+    btn.textContent = t('inv.confirmDelete');
+    setTimeout(() => { btn.classList.remove('confirm'); btn.textContent = t('inv.delete'); }, 3000);
+    return;
+  }
+  btn.disabled = true;
+  try {
+    const res = await fetch(`/invoices/${btn.dataset.id}`, { method:'DELETE' });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    load();
+  } catch (e) {
+    $('errorText').textContent = t('dash.loadError', { msg: e.message });
+    $('errorNotice').hidden = false;
+    btn.disabled = false;
+  }
+});
+
+$('fClient').addEventListener('change', () => { state.clientId = $('fClient').value; state.page = 0; load(); });
+$('fConf').addEventListener('change', () => { state.confiance = $('fConf').value; state.page = 0; load(); });
+$('fFrom').addEventListener('change', () => { state.dateFrom = $('fFrom').value; state.page = 0; load(); });
+$('fTo').addEventListener('change', () => { state.dateTo = $('fTo').value; state.page = 0; load(); });
+$('fSearch').addEventListener('input', () => {
+  clearTimeout(searchDebounce);
+  searchDebounce = setTimeout(() => { state.q = $('fSearch').value.trim(); state.page = 0; load(); }, 350);
+});
+$('resetFilters').addEventListener('click', () => {
+  $('fClient').value = ''; $('fConf').value = ''; $('fFrom').value = ''; $('fTo').value = ''; $('fSearch').value = '';
+  Object.assign(state, { page:0, clientId:'', q:'', confiance:'', dateFrom:'', dateTo:'' });
+  load();
+});
+$('prevPage').addEventListener('click', () => { if (state.page > 0) { state.page--; load(); } });
+$('nextPage').addEventListener('click', () => { state.page++; load(); });
+
+addEventListener('isteps:lang', () => { makeFormatters(); load(); });
+
+loadClientOptions().then(load);
+</script>
+</body>
+</html>

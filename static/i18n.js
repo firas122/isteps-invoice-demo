@@ -8,7 +8,7 @@ window.ISTEPS_DICT = {
     'brand.suffix': '/ Factures',
 
     'nav.intro': 'Intro', 'nav.demo': 'Démo', 'nav.features': 'Fonctions', 'nav.pricing': 'Tarifs',
-    'nav.contact': 'Contact', 'nav.dashboard': 'Tableau de bord', 'nav.home': 'Accueil',
+    'nav.contact': 'Contact', 'nav.dashboard': 'Tableau de bord', 'nav.home': 'Accueil', 'nav.invoices': 'Factures',
     'nav.aria': 'Navigation principale',
     'cta.try': 'Essayer la démo', 'cta.extract': 'Extraire une facture',
     'ui.language': 'Langue', 'ui.toDark': 'Passer en mode sombre', 'ui.toLight': 'Passer en mode clair', 'ui.menu': 'Menu',
@@ -120,6 +120,20 @@ window.ISTEPS_DICT = {
     'col.share': 'Part', 'col.rate': 'Taux', 'col.base': 'Base HT', 'col.tva': 'TVA', 'col.total': 'Total',
     'col.status': 'Statut', 'col.number': 'N° facture', 'col.date': 'Date', 'col.ht': 'HT', 'col.timbre': 'Timbre', 'col.ttc': 'TTC', 'col.gap': 'Écart',
     'n.invoices.one': '{n} facture', 'n.invoices.other': '{n} factures',
+
+    /* invoices browse page */
+    'inv.meta.title': 'iSteps Factures — Toutes les factures',
+    'inv.meta.desc': 'Recherchez, filtrez et gérez toutes les factures extraites.',
+    'inv.tag': 'Toutes les factures', 'inv.title': 'Factures',
+    'inv.sub': 'Recherchez, filtrez et gérez toutes les factures extraites, tous clients confondus ou pour un seul.',
+    'inv.search': 'Fournisseur / N° facture', 'inv.searchPh': 'Rechercher…',
+    'inv.allConfidence': 'Toutes', 'inv.from': 'Du', 'inv.to': 'Au', 'inv.resetFilters': 'Réinitialiser',
+    'inv.viewOriginal': 'Voir l’original', 'inv.delete': 'Supprimer', 'inv.confirmDelete': 'Confirmer ?',
+    'inv.prev': 'Précédent', 'inv.next': 'Suivant',
+    'inv.pagerLabel': '{from}–{to} sur {total}',
+    'inv.emptyAll.title': 'Aucune facture enregistrée', 'inv.emptyAll.text': 'Extrayez votre première facture depuis l’accueil : elle apparaîtra ici automatiquement.',
+    'inv.emptyFiltered.title': 'Aucune facture ne correspond', 'inv.emptyFiltered.text': 'Essayez d’élargir vos filtres.',
+    'inv.duplicate': 'Facture similaire déjà enregistrée (n° {number}, {amount}) — vérifiez qu’il ne s’agit pas d’un doublon.',
   },
 
   en: {
@@ -129,7 +143,7 @@ window.ISTEPS_DICT = {
     'brand.suffix': '/ Invoices',
 
     'nav.intro': 'Intro', 'nav.demo': 'Demo', 'nav.features': 'Features', 'nav.pricing': 'Pricing',
-    'nav.contact': 'Contact', 'nav.dashboard': 'Dashboard', 'nav.home': 'Home',
+    'nav.contact': 'Contact', 'nav.dashboard': 'Dashboard', 'nav.home': 'Home', 'nav.invoices': 'Invoices',
     'nav.aria': 'Main navigation',
     'cta.try': 'Try the demo', 'cta.extract': 'Extract an invoice',
     'ui.language': 'Language', 'ui.toDark': 'Switch to dark mode', 'ui.toLight': 'Switch to light mode', 'ui.menu': 'Menu',
@@ -240,6 +254,20 @@ window.ISTEPS_DICT = {
     'col.share': 'Share', 'col.rate': 'Rate', 'col.base': 'Net base', 'col.tva': 'VAT', 'col.total': 'Total',
     'col.status': 'Status', 'col.number': 'Invoice no.', 'col.date': 'Date', 'col.ht': 'Net', 'col.timbre': 'Stamp duty', 'col.ttc': 'Total', 'col.gap': 'Difference',
     'n.invoices.one': '{n} invoice', 'n.invoices.other': '{n} invoices',
+
+    /* invoices browse page */
+    'inv.meta.title': 'iSteps Factures — All invoices',
+    'inv.meta.desc': 'Search, filter and manage every extracted invoice.',
+    'inv.tag': 'All invoices', 'inv.title': 'Invoices',
+    'inv.sub': 'Search, filter and manage every extracted invoice, across all clients or just one.',
+    'inv.search': 'Supplier / invoice no.', 'inv.searchPh': 'Search…',
+    'inv.allConfidence': 'All', 'inv.from': 'From', 'inv.to': 'To', 'inv.resetFilters': 'Reset',
+    'inv.viewOriginal': 'View original', 'inv.delete': 'Delete', 'inv.confirmDelete': 'Confirm?',
+    'inv.prev': 'Previous', 'inv.next': 'Next',
+    'inv.pagerLabel': '{from}–{to} of {total}',
+    'inv.emptyAll.title': 'No invoices yet', 'inv.emptyAll.text': 'Extract your first invoice from the home page and it will show up here automatically.',
+    'inv.emptyFiltered.title': 'No invoices match', 'inv.emptyFiltered.text': 'Try widening your filters.',
+    'inv.duplicate': 'A similar invoice is already on file (no. {number}, {amount}) — check this isn’t a duplicate.',
   },
 
   ar: {
@@ -249,7 +277,7 @@ window.ISTEPS_DICT = {
     'brand.suffix': '/ الفواتير',
 
     'nav.intro': 'مقدّمة', 'nav.demo': 'تجربة', 'nav.features': 'المزايا', 'nav.pricing': 'الأسعار',
-    'nav.contact': 'اتصل بنا', 'nav.dashboard': 'لوحة القيادة', 'nav.home': 'الرئيسية',
+    'nav.contact': 'اتصل بنا', 'nav.dashboard': 'لوحة القيادة', 'nav.home': 'الرئيسية', 'nav.invoices': 'الفواتير',
     'nav.aria': 'التنقّل الرئيسي',
     'cta.try': 'جرّب العرض', 'cta.extract': 'استخراج فاتورة',
     'ui.language': 'اللغة', 'ui.toDark': 'التبديل إلى الوضع الداكن', 'ui.toLight': 'التبديل إلى الوضع الفاتح', 'ui.menu': 'القائمة',
@@ -361,5 +389,19 @@ window.ISTEPS_DICT = {
     'col.status': 'الحالة', 'col.number': 'رقم الفاتورة', 'col.date': 'التاريخ', 'col.ht': 'دون أداءات', 'col.timbre': 'الطابع', 'col.ttc': 'جملي', 'col.gap': 'الفارق',
     'n.invoices.zero': '{n} فاتورة', 'n.invoices.one': 'فاتورة واحدة', 'n.invoices.two': 'فاتورتان',
     'n.invoices.few': '{n} فواتير', 'n.invoices.many': '{n} فاتورة', 'n.invoices.other': '{n} فاتورة',
+
+    /* invoices browse page */
+    'inv.meta.title': 'iSteps Factures — كلّ الفواتير',
+    'inv.meta.desc': 'ابحث في كلّ الفواتير المستخرَجة، صفّها وأدرها.',
+    'inv.tag': 'كلّ الفواتير', 'inv.title': 'الفواتير',
+    'inv.sub': 'ابحث في كلّ الفواتير المستخرَجة، صفّها وأدرها — لكلّ العملاء أو لعميل واحد.',
+    'inv.search': 'المورّد / رقم الفاتورة', 'inv.searchPh': 'ابحث…',
+    'inv.allConfidence': 'الكلّ', 'inv.from': 'من', 'inv.to': 'إلى', 'inv.resetFilters': 'إعادة الضبط',
+    'inv.viewOriginal': 'عرض الأصل', 'inv.delete': 'حذف', 'inv.confirmDelete': 'تأكيد؟',
+    'inv.prev': 'السابق', 'inv.next': 'التالي',
+    'inv.pagerLabel': '{from}–{to} من {total}',
+    'inv.emptyAll.title': 'لا توجد فواتير مسجّلة', 'inv.emptyAll.text': 'استخرج فاتورتك الأولى من الصفحة الرئيسية وستظهر هنا تلقائياً.',
+    'inv.emptyFiltered.title': 'لا توجد فواتير مطابقة', 'inv.emptyFiltered.text': 'حاول توسيع نطاق المرشّحات.',
+    'inv.duplicate': 'توجد فاتورة مشابهة مسجّلة مسبقاً (رقم {number}، {amount}) — تحقّق من أنّها ليست تكراراً.',
   },
 };

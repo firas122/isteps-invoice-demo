@@ -42,7 +42,8 @@ CREATE TABLE IF NOT EXISTS invoices (
     lignes_json    TEXT,
     raw_json       TEXT,
     reviewed       INTEGER NOT NULL DEFAULT 0,
-    reviewed_at    TEXT
+    reviewed_at    TEXT,
+    file_path      TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_invoices_date ON invoices(invoice_date);
 """
@@ -67,6 +68,8 @@ def init_db():
             conn.execute("ALTER TABLE invoices ADD COLUMN reviewed INTEGER NOT NULL DEFAULT 0")
         if "reviewed_at" not in cols:
             conn.execute("ALTER TABLE invoices ADD COLUMN reviewed_at TEXT")
+        if "file_path" not in cols:
+            conn.execute("ALTER TABLE invoices ADD COLUMN file_path TEXT")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_invoices_client ON invoices(client_id)")
 
 
@@ -115,7 +118,7 @@ def supplier_key(name):
     return re.sub(r"\s+", " ", name).strip().upper() if name else None
 
 
-def save_invoice(data, filename=None, source="upload", created_at=None, client_id=None):
+def save_invoice(data, filename=None, source="upload", created_at=None, client_id=None, file_path=None):
     if not isinstance(data, dict):
         return None
     fournisseur = (data.get("fournisseur") or "").strip() or None
@@ -124,8 +127,8 @@ def save_invoice(data, filename=None, source="upload", created_at=None, client_i
         cur = conn.execute(
             """INSERT INTO invoices (created_at, source, filename, client_id, fournisseur, supplier_key,
                    invoice_date, numero_facture, montant_ht, montant_tva, montant_timbre, montant_ttc,
-                   confiance, lignes_json, raw_json)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                   confiance, lignes_json, raw_json, file_path)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
                 created_at or datetime.now().isoformat(timespec="seconds"),
                 source,
@@ -142,9 +145,37 @@ def save_invoice(data, filename=None, source="upload", created_at=None, client_i
                 data.get("confiance"),
                 json.dumps(lignes, ensure_ascii=False),
                 json.dumps(data, ensure_ascii=False),
+                file_path,
             ),
         )
         return cur.lastrowid
+
+
+def find_duplicate(fournisseur, numero_facture, client_id, exclude_id=None):
+    """
+    Best-effort duplicate check: same client, same supplier, same invoice
+    number. Used to WARN on a re-upload, never to block it — the accountant
+    still decides (the "number" could be misread, or genuinely reused by a
+    sloppy supplier).
+    """
+    key = supplier_key(fournisseur)
+    number = (numero_facture or "").strip()
+    if not key or not number:
+        return None
+    query = "SELECT * FROM invoices WHERE supplier_key = ? AND numero_facture = ?"
+    params = [key, number]
+    if client_id is not None:
+        query += " AND client_id = ?"
+        params.append(client_id)
+    else:
+        query += " AND client_id IS NULL"
+    if exclude_id is not None:
+        query += " AND id != ?"
+        params.append(exclude_id)
+    query += " ORDER BY created_at LIMIT 1"
+    with _connect() as conn:
+        row = conn.execute(query, params).fetchone()
+        return dict(row) if row else None
 
 
 def update_invoice(invoice_id, data):
@@ -210,6 +241,56 @@ def get_review_queue(client_id=None):
 def clear_demo_data():
     with _connect() as conn:
         return conn.execute("DELETE FROM invoices WHERE source = 'demo'").rowcount
+
+
+def get_invoice(invoice_id):
+    with _connect() as conn:
+        row = conn.execute("SELECT * FROM invoices WHERE id = ?", (invoice_id,)).fetchone()
+        return dict(row) if row else None
+
+
+def delete_invoice(invoice_id):
+    with _connect() as conn:
+        return conn.execute("DELETE FROM invoices WHERE id = ?", (invoice_id,)).rowcount > 0
+
+
+def list_invoices(client_id=None, q=None, confiance=None, date_from=None, date_to=None,
+                   limit=25, offset=0):
+    """Paginated, filterable browse list backing the invoices page."""
+    # qualified so this WHERE clause is safe to reuse against the LEFT JOIN
+    # below (clients has its own created_at, which would otherwise be ambiguous)
+    eff_date = "COALESCE(invoices.invoice_date, substr(invoices.created_at, 1, 10))"
+
+    where, params = [], []
+    if client_id is not None:
+        where.append("invoices.client_id = ?")
+        params.append(client_id)
+    if q:
+        where.append("(invoices.fournisseur LIKE ? OR invoices.numero_facture LIKE ?)")
+        like = f"%{q}%"
+        params.extend([like, like])
+    if confiance:
+        where.append("invoices.confiance = ?")
+        params.append(confiance)
+    if date_from:
+        where.append(f"{eff_date} >= ?")
+        params.append(date_from)
+    if date_to:
+        where.append(f"{eff_date} <= ?")
+        params.append(date_to)
+    clause = f" WHERE {' AND '.join(where)}" if where else ""
+
+    with _connect() as conn:
+        total = conn.execute(f"SELECT COUNT(*) FROM invoices{clause}", params).fetchone()[0]
+        rows = conn.execute(
+            f"""SELECT invoices.*, clients.name AS client_name, {eff_date} AS eff_date
+                FROM invoices LEFT JOIN clients ON clients.id = invoices.client_id
+                {clause}
+                ORDER BY eff_date DESC, invoices.id DESC
+                LIMIT ? OFFSET ?""",
+            [*params, limit, offset],
+        ).fetchall()
+        return {"total": total, "invoices": [dict(r) for r in rows]}
 
 
 # ------------------------------------------------------------------- clients

@@ -17,6 +17,7 @@ import csv
 import io
 import os
 import secrets
+import uuid
 
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse, PlainTextResponse, StreamingResponse
@@ -32,6 +33,16 @@ storage.init_db()
 
 DEMO_USERNAME = os.environ.get("DEMO_USERNAME")
 DEMO_PASSWORD = os.environ.get("DEMO_PASSWORD")
+
+# Original uploads are kept so a reviewer can pull the source document back up
+# next to a correction — gitignored, and a demo/pilot concern to eventually
+# move to real object storage (see "Before a real pilot" in the README).
+UPLOADS_DIR = os.environ.get("ISTEPS_UPLOADS_DIR", os.path.join(os.path.dirname(__file__), "uploads"))
+os.makedirs(UPLOADS_DIR, exist_ok=True)
+MAX_UPLOAD_BYTES = 15 * 1024 * 1024  # 15 MB — well above any real single/multi-page invoice
+EXT_BY_MIME = {
+    "application/pdf": ".pdf", "image/png": ".png", "image/jpeg": ".jpg", "image/jpg": ".jpg",
+}
 
 
 class BasicAuthMiddleware(BaseHTTPMiddleware):
@@ -98,6 +109,12 @@ async def extract(file: UploadFile = File(...), client_id: int | None = Form(Non
         )
 
     file_bytes = await file.read()
+    if len(file_bytes) > MAX_UPLOAD_BYTES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"File too large ({len(file_bytes) / 1e6:.1f} MB). "
+                   f"Limit is {MAX_UPLOAD_BYTES / 1e6:.0f} MB.",
+        )
 
     try:
         results = extract_invoice_documents(file_bytes, file.content_type)
@@ -109,8 +126,26 @@ async def extract(file: UploadFile = File(...), client_id: int | None = Form(Non
         # TODO: replace with proper logging before any real client demo
         raise HTTPException(status_code=500, detail=f"Extraction failed: {e}")
 
+    stored_path = None
+    ext = EXT_BY_MIME.get(file.content_type, "")
+    try:
+        stored_name = f"{uuid.uuid4().hex}{ext}"
+        with open(os.path.join(UPLOADS_DIR, stored_name), "wb") as f:
+            f.write(file_bytes)
+        stored_path = stored_name
+    except OSError:
+        pass  # source-document retrieval is a nice-to-have, never worth failing the extraction over
+
     for result in results:
-        result["id"] = storage.save_invoice(result, filename=file.filename, client_id=client_id)
+        duplicate = storage.find_duplicate(result.get("fournisseur"), result.get("numero_facture"), client_id)
+        if duplicate:
+            result["duplicate_of"] = {
+                "id": duplicate["id"], "fournisseur": duplicate["fournisseur"],
+                "numero_facture": duplicate["numero_facture"], "montant_ttc": duplicate["montant_ttc"],
+            }
+        result["id"] = storage.save_invoice(
+            result, filename=file.filename, client_id=client_id, file_path=stored_path)
+        result["has_file"] = stored_path is not None
 
     return {"documents": results}
 
@@ -139,6 +174,44 @@ async def review_queue(client_id: int | None = None):
     return {"invoices": storage.get_review_queue(client_id)}
 
 
+@app.get("/api/invoices")
+async def list_invoices(
+    client_id: int | None = None, q: str | None = None, confiance: str | None = None,
+    date_from: str | None = None, date_to: str | None = None, limit: int = 25, offset: int = 0,
+):
+    limit = max(1, min(limit, 200))
+    offset = max(0, offset)
+    return storage.list_invoices(
+        client_id=client_id, q=q, confiance=confiance, date_from=date_from, date_to=date_to,
+        limit=limit, offset=offset,
+    )
+
+
+@app.delete("/invoices/{invoice_id}")
+async def delete_invoice(invoice_id: int):
+    invoice = storage.get_invoice(invoice_id)
+    if invoice is None:
+        raise HTTPException(status_code=404, detail="Invoice not found")
+    if invoice.get("file_path"):
+        try:
+            os.remove(os.path.join(UPLOADS_DIR, invoice["file_path"]))
+        except OSError:
+            pass
+    storage.delete_invoice(invoice_id)
+    return {"ok": True}
+
+
+@app.get("/invoices/{invoice_id}/file")
+async def get_invoice_file(invoice_id: int):
+    invoice = storage.get_invoice(invoice_id)
+    if invoice is None or not invoice.get("file_path"):
+        raise HTTPException(status_code=404, detail="No source file stored for this invoice")
+    path = os.path.join(UPLOADS_DIR, invoice["file_path"])
+    if not os.path.isfile(path):
+        raise HTTPException(status_code=404, detail="Source file is missing on disk")
+    return FileResponse(path, filename=invoice.get("filename") or invoice["file_path"])
+
+
 @app.get("/clients")
 async def clients():
     return {"clients": storage.list_clients()}
@@ -153,9 +226,19 @@ async def add_client(payload: dict):
     return client
 
 
+@app.get("/health")
+async def health():
+    return {"status": "ok"}
+
+
 @app.get("/dashboard")
 async def dashboard():
     return FileResponse("static/dashboard.html")
+
+
+@app.get("/invoices")
+async def invoices_page():
+    return FileResponse("static/invoices.html")
 
 
 @app.get("/api/analytics")
@@ -191,8 +274,10 @@ async def export_csv(payload: dict):
         ])
 
     output.seek(0)
+    # Excel only auto-detects UTF-8 (accented French / Arabic text) with a BOM —
+    # without it, a plain double-click opens the file as mojibake.
     return StreamingResponse(
-        iter([output.getvalue()]),
+        iter(["﻿" + output.getvalue()]),
         media_type="text/csv",
         headers={"Content-Disposition": "attachment; filename=facture_extraite.csv"},
     )

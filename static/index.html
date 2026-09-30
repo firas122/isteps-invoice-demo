@@ -487,6 +487,7 @@ footer{position:relative;z-index:1;border-top:1px solid var(--line);padding:38px
 
     <div class="header-actions">
       <div class="prefs" data-prefs></div>
+      <a href="/invoices" class="btn btn-ghost btn-sm" data-i18n="nav.invoices">Factures</a>
       <a href="/dashboard" class="btn btn-ghost btn-sm" data-i18n="nav.dashboard">Tableau de bord</a>
       <a href="#demo" class="btn btn-primary btn-sm" data-i18n="cta.try">Essayer la démo</a>
       <button class="nav-toggle" id="navToggle" aria-expanded="false" data-i18n-attr="aria-label:ui.menu">
@@ -503,6 +504,7 @@ footer{position:relative;z-index:1;border-top:1px solid var(--line);padding:38px
   <a href="#features" data-i18n="nav.features">Fonctions</a>
   <a href="#pricing" data-i18n="nav.pricing">Tarifs</a>
   <a href="#contact" data-i18n="nav.contact">Contact</a>
+  <a href="/invoices" data-i18n="nav.invoices">Factures</a>
   <a href="/dashboard" data-i18n="nav.dashboard">Tableau de bord</a>
 </div>
 
@@ -607,6 +609,11 @@ footer{position:relative;z-index:1;border-top:1px solid var(--line);padding:38px
                 <div class="doc-badges" data-role="confidence"></div>
               </div>
 
+              <div class="check warn" data-role="duplicateWarning" hidden>
+                <svg viewBox="0 0 24 24"><path d="M12 3 2 20h20zM12 10v4M12 17h.01"/></svg>
+                <span data-role="duplicateText"></span>
+              </div>
+
               <div class="amounts">
                 <div class="amt"><div class="k" data-role="lblHt"></div><div class="amt-input"><input class="v ed" data-field="montant_ht" inputmode="decimal"><span class="c" data-role="curHt"></span></div></div>
                 <div class="amt"><div class="k" data-role="lblTva"></div><div class="amt-input"><input class="v ed" data-field="montant_tva" inputmode="decimal"><span class="c" data-role="curTva"></span></div></div>
@@ -647,6 +654,9 @@ footer{position:relative;z-index:1;border-top:1px solid var(--line);padding:38px
                 <button class="btn btn-ghost btn-sm" data-role="saveBtn">
                   <span data-role="saveLabel"></span>
                 </button>
+                <a class="btn btn-ghost btn-sm" data-role="viewOriginal" target="_blank" rel="noopener" hidden>
+                  <span data-role="viewOriginalLabel"></span>
+                </a>
                 <span class="save-status" data-role="saveStatus"></span>
               </div>
             </div>
@@ -815,6 +825,7 @@ footer{position:relative;z-index:1;border-top:1px solid var(--line);padding:38px
       <a href="#features" data-i18n="nav.features">Fonctions</a>
       <a href="#pricing" data-i18n="nav.pricing">Tarifs</a>
       <a href="#contact" data-i18n="nav.contact">Contact</a>
+      <a href="/invoices" data-i18n="nav.invoices">Factures</a>
       <a href="/dashboard" data-i18n="nav.dashboard">Tableau de bord</a>
     </div>
     <div class="copy">© <span id="year"></span> iSteps — <span data-i18n="footer.tagline">Extraction documentaire</span></div>
@@ -1140,6 +1151,17 @@ function buildDocCard(doc, idx){
     ? `<span class="badge fallback"><i></i>${esc(t('fallback.ocr'))}</span>` : '';
   q('confidence').innerHTML = confBadge + fallbackBadge;
 
+  const dupWarning = q('duplicateWarning');
+  if (doc.duplicate_of) {
+    dupWarning.hidden = false;
+    q('duplicateText').textContent = t('inv.duplicate', {
+      number: doc.duplicate_of.numero_facture || '—',
+      amount: money(doc.duplicate_of.montant_ttc).replace(/<[^>]+>/g, ''),
+    });
+  } else {
+    dupWarning.hidden = true;
+  }
+
   q('lblHt').textContent = t('amt.ht'); q('curHt').textContent = t('cur');
   q('lblTva').textContent = t('amt.tva'); q('curTva').textContent = t('cur');
   q('lblTimbre').textContent = t('amt.timbre'); q('curTimbre').textContent = t('cur');
@@ -1154,6 +1176,15 @@ function buildDocCard(doc, idx){
   q('exportLabel').textContent = t('res.export');
   q('saveLabel').textContent = doc.id ? t('res.save') : t('res.saveUnavailable');
   q('saveBtn').disabled = !doc.id;
+
+  const viewOriginal = q('viewOriginal');
+  if (doc.has_file && doc.id) {
+    viewOriginal.hidden = false;
+    viewOriginal.href = `/invoices/${doc.id}/file`;
+    q('viewOriginalLabel').textContent = t('inv.viewOriginal');
+  } else {
+    viewOriginal.hidden = true;
+  }
 
   node.querySelectorAll('input[data-field]').forEach(input => {
     const field = input.dataset.field;

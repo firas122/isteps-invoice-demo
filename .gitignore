@@ -5,6 +5,10 @@
 *.db
 invoices.backup-*.db
 
+# Original uploaded invoices, kept so a reviewer can pull up the source
+# document — contains real invoice content, never commit it
+uploads/
+
 # Raw Gemini responses saved for debugging — contains real invoice content
 logs/
 

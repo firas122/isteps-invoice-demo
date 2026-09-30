@@ -30,19 +30,22 @@ export CSV.
 
 ```
 isteps-invoice-demo/
-├── main.py                  FastAPI app: /extract, /invoices/{id}, /clients, /export-csv, /dashboard, /api/analytics, /api/review-queue
+├── main.py                  FastAPI app: /extract, /invoices, /clients, /export-csv, /dashboard, /api/analytics, /api/review-queue, /health
 ├── extractor.py             Gemini-vision call + prompt + JSON parsing + OCR fallback + multi-page PDF splitting
 ├── ocr_extractor.py         Local OCR fallback (Tesseract + regex), used when Gemini fails/quota
 ├── storage.py               SQLite store (invoices + clients) + analytics aggregations
 ├── seed_demo_data.py        Optional fictional sample invoices for the dashboard
 ├── static/index.html        Landing page + upload UI, results, CSV export
-├── static/dashboard.html    Spend analytics dashboard (charts, tables, anomalies)
+├── static/dashboard.html    Spend analytics dashboard (charts, tables, anomalies, review queue)
+├── static/invoices.html     Browse/search/filter all extracted invoices, view original, delete
 ├── static/smooth-scroll.js  Shared smooth wheel/anchor scrolling
 ├── static/theme.css         Shared light/dark tokens, buttons, language/theme controls
 ├── static/i18n.js           All UI text in French, English and Arabic
 ├── static/site.js           Language switcher + theme toggle runtime
 ├── static/prefs.js          Applies saved language/theme before first paint
+├── tests/                   pytest suite (storage, extractor, API) — see "Running tests" below
 ├── requirements.txt
+├── requirements-dev.txt     Adds pytest + httpx for running the test suite
 └── .env.example
 ```
 
@@ -139,6 +142,43 @@ continuation) or repeats the same invoice number; the API always returns
 `{"documents": [...]}`, one entry per invoice found, and the results page renders one
 reviewable card per document.
 
+## Browsing, duplicates & source documents
+
+Open http://127.0.0.1:8000/invoices for a searchable table of every extracted
+invoice — filter by client, supplier/invoice-number text, confidence, or date
+range, paginate, and delete a bad/test extraction (`GET/DELETE /invoices` via
+`storage.list_invoices()` / `delete_invoice()`).
+
+A couple of things extraction now does automatically:
+
+- **Duplicate warning.** If the same client already has an invoice with the same
+  supplier + invoice number, the new extraction is still saved (never blocked —
+  the "number" could be a misread, or a supplier really did reuse one) but comes
+  back with a `duplicate_of` field, shown as an amber warning on the results card.
+- **Original file retrieval.** The uploaded PDF/image is kept in `uploads/`
+  (gitignored — real invoice content) and can always be pulled back up via
+  "View original" on the results card, the review queue, or the invoices table
+  (`GET /invoices/{id}/file`). Deleting an invoice also removes its stored file.
+- **Upload size limit.** Files over 15 MB are rejected before ever reaching
+  Gemini (`MAX_UPLOAD_BYTES` in `main.py`).
+
+`GET /health` returns `{"status": "ok"}` for Railway's health checks.
+
+## Running tests
+
+```bash
+pip install -r requirements-dev.txt
+pytest
+```
+
+The suite (`tests/`) runs entirely against a throwaway temp SQLite DB and
+upload folder (set up in `tests/conftest.py`) — it never touches your real
+`invoices.db` or `uploads/`, and never calls the real Gemini API (the FastAPI
+tests monkeypatch `extract_invoice_documents`). Covers: schema migrations,
+all `storage.py` CRUD/filtering/analytics logic, the multi-page merge
+heuristic in `extractor.py`, and every API endpoint including the duplicate
+warning, file retrieval, and the CSV's Excel-compatible UTF-8 BOM.
+
 ## Recommended next steps (in Claude Code)
 
 1. **Test with real invoice samples.** Grab 3-5 actual invoices from your
@@ -148,17 +188,16 @@ reviewable card per document.
    Tunisian invoices sometimes have TVA at multiple rates (7%/13%/19%),
    or amounts written with commas instead of periods. Add few-shot
    examples to the prompt if accuracy is inconsistent.
-3. **Add basic validation**: flag when `montant_ht + montant_tva !=
-   montant_ttc` (catches extraction errors automatically, and doubles as
-   a trust-building feature to show clients — "it checks its own work").
-4. **Numeric field safety**: Gemini can return numbers as strings
-   occasionally — coerce/validate before displaying or exporting.
+3. **Expand the test suite** as real invoice edge cases turn up (see
+   "Running tests" above) — cheaper to catch a regression in CI than in
+   a client meeting.
 
 ## Before a real (paid) pilot — not needed for the demo itself
 
 - Basic auth is wired up (`BasicAuthMiddleware` in `main.py`, via `DEMO_USERNAME`/
   `DEMO_PASSWORD`) but skipped entirely if either is unset — always set both before
-  sharing a deployed URL with a client.
+  sharing a deployed URL with a client. It's also a single shared password for
+  everyone — a real pilot with multiple accountants needs individual logins.
 - Add logging of raw Gemini responses somewhere, so failed extractions
   are debuggable
 - Add retry/timeout handling around the Gemini call itself (there's now
@@ -169,13 +208,21 @@ reviewable card per document.
   accurate/reliable for a given doc type in production, swap the
   implementation in `extractor.py` behind the same `extract_invoice_documents()`
   interface — the FastAPI layer and frontend don't need to change.
-- Storage: extractions are persisted in local SQLite for the demo. A shared
-  deployment needs a real database (Supabase, same as the Nova Assistant
-  stack). Invoices are now tagged to a client folder and the dashboard/review
-  queue can filter by one (see "Client folders & review workflow" above), but
+- Storage: extractions are persisted in local SQLite for the demo, and original
+  uploaded files sit on local disk (`uploads/`) — fine for a single Railway
+  instance, but neither survives a redeploy without a mounted volume, and
+  neither scales past one instance. A real deployment needs a real database
+  (Supabase, same as the Nova Assistant stack) and object storage (S3-compatible)
+  for the originals.
+- Invoices are tagged to a client folder and the dashboard/review queue/invoices
+  page can filter by one (see "Client folders & review workflow" above), but
   that's a UI filter, not access control — anyone who can open the dashboard
   still sees every client's data. A real multi-client deployment needs actual
   per-client access restriction, not just filtering.
+- Duplicate detection is a same-supplier/same-invoice-number heuristic; a
+  production version would also want to catch near-duplicates (OCR misread a
+  digit in the invoice number) and let the accountant merge/dismiss a flag
+  instead of just seeing a warning.
 
 ## Notes
 
