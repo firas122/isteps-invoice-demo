@@ -162,6 +162,14 @@ section{scroll-margin-top:calc(var(--header-h) + 22px)}
   background:linear-gradient(90deg,transparent,rgba(var(--accent-rgb),.6),transparent);
 }
 .ws-bar{display:flex;align-items:center;gap:13px;padding:14px 20px;border-bottom:1px solid var(--line);background:var(--surface)}
+.client-picker{display:flex;align-items:center;flex-wrap:wrap;gap:10px;padding:14px 20px;border-bottom:1px solid var(--line);background:var(--surface)}
+.client-picker label{font-size:.78rem;color:var(--muted);font-weight:600}
+.client-picker select,.client-add input{
+  font:inherit;font-size:.85rem;color:var(--text);background:var(--input-bg);
+  border:1px solid var(--line-2);border-radius:var(--r-sm);padding:7px 11px;
+}
+.client-picker select:focus,.client-add input:focus{outline:none;border-color:rgba(var(--accent-rgb),.55)}
+.client-add{display:inline-flex;align-items:center;gap:8px}
 .ws-dots{display:flex;gap:6px}
 .ws-dots i{width:9px;height:9px;border-radius:50%;background:var(--surface-3)}
 .ws-title{font-size:.8rem;color:var(--faint);letter-spacing:.02em}
@@ -252,6 +260,8 @@ input[type=file]{display:none}
 .amt.hero-amt{background:linear-gradient(150deg,rgba(var(--accent-rgb),.12),rgba(var(--accent-2-rgb),.05));border-color:rgba(var(--accent-rgb),.28)}
 .amt .k{font-size:.715rem;text-transform:uppercase;letter-spacing:.11em;color:var(--faint);font-weight:600}
 .amt .v{font-size:1.42rem;font-weight:650;margin-top:8px;letter-spacing:-.025em;font-variant-numeric:tabular-nums}
+.amt-input{display:flex;align-items:baseline;gap:4px;margin-top:8px}
+.amt-input .v{margin-top:0}
 .c{font-size:.78em;color:var(--faint);font-weight:500;margin-inline-start:4px}
 
 .check{display:flex;align-items:center;gap:9px;padding:10px 15px;border-radius:var(--r);font-size:.815rem;font-weight:500;margin-bottom:22px}
@@ -278,6 +288,22 @@ td.num,th.num{text-align:end;font-variant-numeric:tabular-nums}
 .empty-row{color:var(--faint);text-align:center!important;padding:26px!important}
 .res-actions{display:flex;gap:11px;margin-top:22px;flex-wrap:wrap}
 .res-actions svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+
+.docs-note{font-size:.83rem;color:var(--muted);margin:2px 0 18px}
+.doc-card{padding-top:26px;margin-top:26px;border-top:1px dashed var(--line)}
+.doc-card:first-child{padding-top:0;margin-top:0;border-top:none}
+.doc-card-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px;flex-wrap:wrap}
+.doc-title{font-weight:650;font-size:.9rem;color:var(--faint)}
+.doc-badges{display:flex;flex-wrap:wrap;gap:8px}
+.doc-actions{display:flex;gap:11px;margin-top:22px;flex-wrap:wrap;align-items:center}
+.doc-actions svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.save-status{font-size:.8rem;color:var(--ok-text);opacity:0;transition:opacity .25s}
+.save-status.on{opacity:1}
+.save-status.err{color:var(--err-text)}
+input.ed{border:none;background:transparent;color:inherit;font:inherit;width:100%;padding:0;font-variant-numeric:tabular-nums}
+input.ed:focus{outline:none;box-shadow:0 0 0 2px rgba(var(--accent-rgb),.35);border-radius:4px}
+tbody input.ed{font-size:inherit}
+td.num input.ed{text-align:end}
 
 @keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
 
@@ -515,6 +541,17 @@ footer{position:relative;z-index:1;border-top:1px solid var(--line);padding:38px
         </div>
 
         <div class="ws-body">
+          <div class="client-picker" id="clientPicker">
+            <label for="clientSelect" data-i18n="client.label">Client</label>
+            <select id="clientSelect"></select>
+            <button type="button" class="btn btn-ghost btn-sm" id="newClientBtn" data-i18n="client.new">+ Nouveau client</button>
+            <span class="client-add" id="clientAdd" hidden>
+              <input type="text" id="newClientName" data-i18n-attr="placeholder:client.namePh">
+              <button type="button" class="btn btn-primary btn-sm" id="clientAddConfirm" data-i18n="client.add">Ajouter</button>
+              <button type="button" class="btn btn-ghost btn-sm" id="clientAddCancel" data-i18n="client.cancel">Annuler</button>
+            </span>
+          </div>
+
           <div id="dropzone" tabindex="0" role="button" data-i18n-attr="aria-label:demo.dropAria">
             <div id="dzIdle">
               <div class="dz-icon">
@@ -552,46 +589,68 @@ footer{position:relative;z-index:1;border-top:1px solid var(--line);padding:38px
                   <div class="m" id="resMeta">—</div>
                 </div>
               </div>
-              <div id="confidence" style="display:flex;flex-wrap:wrap;gap:8px"></div>
             </div>
 
-            <div class="amounts">
-              <div class="amt"><div class="k" data-i18n="amt.ht">Montant HT</div><div class="v" id="vHT">—</div></div>
-              <div class="amt"><div class="k" data-i18n="amt.tva">TVA</div><div class="v" id="vTVA">—</div></div>
-              <div class="amt"><div class="k" data-i18n="amt.timbre">Timbre fiscal</div><div class="v" id="vTimbre">—</div></div>
-              <div class="amt hero-amt"><div class="k" data-i18n="amt.ttc">Total TTC</div><div class="v" id="vTTC">—</div></div>
-            </div>
-
-            <div class="check" id="check" hidden>
-              <svg viewBox="0 0 24 24"><path id="checkIcon" d="m5 13 4 4L19 7"/></svg>
-              <span id="checkText"></span>
-            </div>
-
-            <div class="fields" id="fields"></div>
-
-            <div class="table-wrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th data-i18n="th.desc">Description</th>
-                    <th class="num" data-i18n="th.qty">Qté</th>
-                    <th class="num" data-i18n="th.unit">Prix unitaire</th>
-                    <th class="num" data-i18n="th.amount">Montant</th>
-                  </tr>
-                </thead>
-                <tbody id="linesBody"></tbody>
-              </table>
-            </div>
+            <div class="docs-note" id="docsNote" hidden></div>
+            <div id="docsList"></div>
 
             <div class="res-actions">
-              <button class="btn btn-primary btn-sm" id="exportBtn">
-                <svg viewBox="0 0 24 24"><path d="M12 4v11m0 0-4-4m4 4 4-4"/><path d="M5 19h14"/></svg>
-                <span data-i18n="res.export">Exporter en CSV</span>
-              </button>
               <button class="btn btn-ghost btn-sm" id="resetBtn" data-i18n="res.reset">Nouvelle facture</button>
               <a class="btn btn-ghost btn-sm" href="/dashboard" data-i18n="res.viewDash">Voir le tableau de bord</a>
             </div>
           </div>
+
+          <template id="docCardTpl">
+            <div class="doc-card">
+              <div class="doc-card-head">
+                <div class="doc-title" data-role="docTitle"></div>
+                <div class="doc-badges" data-role="confidence"></div>
+              </div>
+
+              <div class="amounts">
+                <div class="amt"><div class="k" data-role="lblHt"></div><div class="amt-input"><input class="v ed" data-field="montant_ht" inputmode="decimal"><span class="c" data-role="curHt"></span></div></div>
+                <div class="amt"><div class="k" data-role="lblTva"></div><div class="amt-input"><input class="v ed" data-field="montant_tva" inputmode="decimal"><span class="c" data-role="curTva"></span></div></div>
+                <div class="amt"><div class="k" data-role="lblTimbre"></div><div class="amt-input"><input class="v ed" data-field="montant_timbre" inputmode="decimal"><span class="c" data-role="curTimbre"></span></div></div>
+                <div class="amt hero-amt"><div class="k" data-role="lblTtc"></div><div class="amt-input"><input class="v ed" data-field="montant_ttc" inputmode="decimal"><span class="c" data-role="curTtc"></span></div></div>
+              </div>
+
+              <div class="check" data-role="check" hidden>
+                <svg viewBox="0 0 24 24"><path data-role="checkIcon" d="m5 13 4 4L19 7"/></svg>
+                <span data-role="checkText"></span>
+              </div>
+
+              <div class="fields">
+                <div class="field"><div class="k" data-role="lblSupplier"></div><input class="v ed" data-field="fournisseur" dir="auto"></div>
+                <div class="field"><div class="k" data-role="lblDate"></div><input class="v ed" data-field="date"></div>
+                <div class="field"><div class="k" data-role="lblNumber"></div><input class="v ed" data-field="numero_facture"></div>
+              </div>
+
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th data-role="thDesc"></th>
+                      <th class="num" data-role="thQty"></th>
+                      <th class="num" data-role="thUnit"></th>
+                      <th class="num" data-role="thAmount"></th>
+                    </tr>
+                  </thead>
+                  <tbody data-role="linesBody"></tbody>
+                </table>
+              </div>
+
+              <div class="doc-actions">
+                <button class="btn btn-primary btn-sm" data-role="exportBtn">
+                  <svg viewBox="0 0 24 24"><path d="M12 4v11m0 0-4-4m4 4 4-4"/><path d="M5 19h14"/></svg>
+                  <span data-role="exportLabel"></span>
+                </button>
+                <button class="btn btn-ghost btn-sm" data-role="saveBtn">
+                  <span data-role="saveLabel"></span>
+                </button>
+                <span class="save-status" data-role="saveStatus"></span>
+              </div>
+            </div>
+          </template>
         </div>
       </div>
     </div>
@@ -885,12 +944,19 @@ const fileInput = document.getElementById('fileInput');
 const alertBox  = document.getElementById('alert');
 const alertText = document.getElementById('alertText');
 const results   = document.getElementById('results');
-const linesBody = document.getElementById('linesBody');
-const fieldsBox = document.getElementById('fields');
-const exportBtn = document.getElementById('exportBtn');
+const docsList  = document.getElementById('docsList');
+const docsNote  = document.getElementById('docsNote');
+const docCardTpl= document.getElementById('docCardTpl');
 const resetBtn  = document.getElementById('resetBtn');
 
-let lastResult = null, lastFile = null, analysedAt = null, lastAlert = null, stepTimers = [];
+const clientSelect     = document.getElementById('clientSelect');
+const newClientBtn     = document.getElementById('newClientBtn');
+const clientAdd        = document.getElementById('clientAdd');
+const newClientName    = document.getElementById('newClientName');
+const clientAddConfirm = document.getElementById('clientAddConfirm');
+const clientAddCancel  = document.getElementById('clientAddCancel');
+
+let lastDocs = null, lastFile = null, analysedAt = null, lastAlert = null, stepTimers = [];
 
 // Tunisian dinar is quoted in millimes: always 3 decimals
 let nf;
@@ -904,6 +970,66 @@ const num = v => {
   return Number.isFinite(n) ? n : null;
 };
 const money = v => { const n = num(v); return n === null ? '—' : `${nf.format(n)}<span class="c">${esc(t('cur'))}</span>`; };
+
+/* ============================================================
+   CLIENTS — the accountant's own client folders. Invoices tag onto
+   one so the dashboard and review queue can be filtered per client.
+   ============================================================ */
+const CLIENT_STORAGE_KEY = 'isteps_client_id';
+
+function populateClientSelect(clients, selectedId){
+  clientSelect.innerHTML = `<option value="">${esc(t('client.none'))}</option>` +
+    clients.map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join('');
+  if (selectedId && clients.some(c => String(c.id) === String(selectedId))) clientSelect.value = String(selectedId);
+}
+
+async function loadClients(selectedId){
+  try {
+    const res = await fetch('/clients');
+    if (!res.ok) return;
+    const data = await res.json();
+    populateClientSelect(data.clients || [], selectedId ?? localStorage.getItem(CLIENT_STORAGE_KEY));
+  } catch (e) { /* client picker is a convenience, not required for the demo to work */ }
+}
+loadClients();
+
+clientSelect.addEventListener('change', () => {
+  if (clientSelect.value) localStorage.setItem(CLIENT_STORAGE_KEY, clientSelect.value);
+  else localStorage.removeItem(CLIENT_STORAGE_KEY);
+});
+
+newClientBtn.addEventListener('click', () => {
+  clientAdd.hidden = false;
+  newClientBtn.hidden = true;
+  newClientName.value = '';
+  newClientName.focus();
+});
+clientAddCancel.addEventListener('click', () => {
+  clientAdd.hidden = true;
+  newClientBtn.hidden = false;
+});
+async function submitNewClient(){
+  const name = newClientName.value.trim();
+  if (!name) return;
+  clientAddConfirm.disabled = true;
+  try {
+    const res = await fetch('/clients', {
+      method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify({ name }),
+    });
+    if (!res.ok) throw new Error(res.statusText);
+    const client = await res.json();
+    await loadClients(client.id);
+    localStorage.setItem(CLIENT_STORAGE_KEY, String(client.id));
+    clientAdd.hidden = true;
+    newClientBtn.hidden = false;
+  } catch (e) {
+    showAlert('err.network', { msg: e.message });
+  } finally {
+    clientAddConfirm.disabled = false;
+  }
+}
+clientAddConfirm.addEventListener('click', submitNewClient);
+newClientName.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); submitNewClient(); } });
 
 dropzone.addEventListener('click', () => { if (!dropzone.classList.contains('busy')) fileInput.click(); });
 dropzone.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fileInput.click(); } });
@@ -950,6 +1076,7 @@ async function handleFile(file){
 
   const fd = new FormData();
   fd.append('file', file);
+  if (clientSelect.value) fd.append('client_id', clientSelect.value);
 
   try {
     const res = await fetch('/extract', { method:'POST', body:fd });
@@ -967,10 +1094,11 @@ async function handleFile(file){
     steps.forEach(s => { s.classList.remove('active'); s.classList.add('done'); });
     await new Promise(r => setTimeout(r, 420));
     stopScan();
-    lastResult = data;
+    lastDocs = Array.isArray(data.documents) ? data.documents : [data];
+    lastDocs.forEach(d => { if (!Array.isArray(d.lignes)) d.lignes = []; });
     lastFile = file;
     analysedAt = new Date();
-    render(data, file);
+    render();
     results.scrollIntoView({ behavior:'smooth', block:'nearest' });
   } catch (e) {
     stopScan();
@@ -980,29 +1108,9 @@ async function handleFile(file){
   }
 }
 
-function render(data, file){
-  results.classList.add('on');
-
-  document.getElementById('resName').textContent = file.name;
-  document.getElementById('resMeta').textContent = t('res.meta', {
-    size: new Intl.NumberFormat(I18N.locale).format(Math.round(file.size / 1024)),
-    time: analysedAt.toLocaleTimeString(I18N.locale, { hour:'2-digit', minute:'2-digit' }),
-  });
-
-  const conf = String(data.confiance || '').toLowerCase();
-  const confBadge = ['haute','moyenne','basse'].includes(conf)
-    ? `<span class="badge ${conf}"><i></i>${esc(t('conf.' + conf))}</span>` : '';
-  const fallbackBadge = data.methode_extraction === 'ocr_local'
-    ? `<span class="badge fallback"><i></i>${esc(t('fallback.ocr'))}</span>` : '';
-  document.getElementById('confidence').innerHTML = confBadge + fallbackBadge;
-
-  document.getElementById('vHT').innerHTML     = money(data.montant_ht);
-  document.getElementById('vTVA').innerHTML    = money(data.montant_tva);
-  document.getElementById('vTimbre').innerHTML = money(data.montant_timbre);
-  document.getElementById('vTTC').innerHTML    = money(data.montant_ttc);
-
-  const ht = num(data.montant_ht), tva = num(data.montant_tva), timbre = num(data.montant_timbre), ttc = num(data.montant_ttc);
-  const check = document.getElementById('check');
+function updateCheck(node, doc){
+  const ht = num(doc.montant_ht), tva = num(doc.montant_tva), timbre = num(doc.montant_timbre), ttc = num(doc.montant_ttc);
+  const check = node.querySelector('[data-role="check"]');
   if (ht !== null && tva !== null && ttc !== null) {
     // timbre is often absent (exempt invoices, or missed by the model) — treat as 0 rather
     // than skipping the check, since HT/TVA/TTC are the fields that must always be present
@@ -1010,58 +1118,127 @@ function render(data, file){
     const ok = gap < 0.02;
     check.hidden = false;
     check.className = `check ${ok ? 'ok' : 'warn'}`;
-    document.getElementById('checkIcon').setAttribute('d', ok ? 'm5 13 4 4L19 7' : 'M12 3 2 20h20zM12 10v4M12 17h.01');
-    document.getElementById('checkText').textContent = ok
+    node.querySelector('[data-role="checkIcon"]').setAttribute('d', ok ? 'm5 13 4 4L19 7' : 'M12 3 2 20h20zM12 10v4M12 17h.01');
+    node.querySelector('[data-role="checkText"]').textContent = ok
       ? t('check.ok')
       : t('check.warn', { gap: `${nf.format(gap)} ${t('cur')}` });
   } else {
     check.hidden = true;
   }
+}
 
-  const fields = [
-    ['field.supplier', data.fournisseur],
-    ['field.date', data.date],
-    ['field.number', data.numero_facture],
-  ];
-  fieldsBox.innerHTML = fields.map(([k, v]) =>
-    `<div class="field"><div class="k">${esc(t(k))}</div><div class="v" dir="auto">${v ? esc(v) : '—'}</div></div>`
-  ).join('');
+function buildDocCard(doc, idx){
+  const node = docCardTpl.content.firstElementChild.cloneNode(true);
+  const q = role => node.querySelector(`[data-role="${role}"]`);
 
-  const lignes = Array.isArray(data.lignes) ? data.lignes : [];
+  q('docTitle').textContent = lastDocs.length > 1 ? t('res.docTitle', { n: idx + 1 }) : '';
+
+  const conf = String(doc.confiance || '').toLowerCase();
+  const confBadge = ['haute','moyenne','basse'].includes(conf)
+    ? `<span class="badge ${conf}"><i></i>${esc(t('conf.' + conf))}</span>` : '';
+  const fallbackBadge = doc.methode_extraction === 'ocr_local' || doc.methode_extraction === 'mixed'
+    ? `<span class="badge fallback"><i></i>${esc(t('fallback.ocr'))}</span>` : '';
+  q('confidence').innerHTML = confBadge + fallbackBadge;
+
+  q('lblHt').textContent = t('amt.ht'); q('curHt').textContent = t('cur');
+  q('lblTva').textContent = t('amt.tva'); q('curTva').textContent = t('cur');
+  q('lblTimbre').textContent = t('amt.timbre'); q('curTimbre').textContent = t('cur');
+  q('lblTtc').textContent = t('amt.ttc'); q('curTtc').textContent = t('cur');
+  q('lblSupplier').textContent = t('field.supplier');
+  q('lblDate').textContent = t('field.date');
+  q('lblNumber').textContent = t('field.number');
+  q('thDesc').textContent = t('th.desc');
+  q('thQty').textContent = t('th.qty');
+  q('thUnit').textContent = t('th.unit');
+  q('thAmount').textContent = t('th.amount');
+  q('exportLabel').textContent = t('res.export');
+  q('saveLabel').textContent = doc.id ? t('res.save') : t('res.saveUnavailable');
+  q('saveBtn').disabled = !doc.id;
+
+  node.querySelectorAll('input[data-field]').forEach(input => {
+    const field = input.dataset.field;
+    input.value = doc[field] == null ? '' : doc[field];
+    input.addEventListener('input', () => { doc[field] = input.value; updateCheck(node, doc); });
+  });
+  updateCheck(node, doc);
+
+  const linesBody = q('linesBody');
+  const lignes = doc.lignes;
   linesBody.innerHTML = lignes.length
     ? lignes.map((l, i) => `
         <tr style="animation-delay:${i * 60}ms">
-          <td dir="auto">${l.description ? esc(l.description) : '—'}</td>
-          <td class="num">${l.quantite != null ? esc(l.quantite) : '—'}</td>
-          <td class="num">${money(l.prix_unitaire)}</td>
-          <td class="num">${money(l.montant)}</td>
+          <td dir="auto"><input class="ed" data-line="${i}" data-lfield="description" value="${esc(l.description ?? '')}"></td>
+          <td class="num"><input class="ed" data-line="${i}" data-lfield="quantite" value="${esc(l.quantite ?? '')}"></td>
+          <td class="num"><input class="ed" data-line="${i}" data-lfield="prix_unitaire" value="${esc(l.prix_unitaire ?? '')}"></td>
+          <td class="num"><input class="ed" data-line="${i}" data-lfield="montant" value="${esc(l.montant ?? '')}"></td>
         </tr>`).join('')
     : `<tr><td colspan="4" class="empty-row">${esc(t('res.noLines'))}</td></tr>`;
+  linesBody.querySelectorAll('input[data-line]').forEach(input => {
+    input.addEventListener('input', () => { lignes[Number(input.dataset.line)][input.dataset.lfield] = input.value; });
+  });
+
+  const exportBtn = q('exportBtn');
+  exportBtn.addEventListener('click', async () => {
+    exportBtn.disabled = true;
+    try {
+      const res = await fetch('/export-csv', {
+        method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify(doc),
+      });
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = 'facture_extraite.csv'; a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      showAlert('err.export', { msg: e.message });
+    } finally {
+      exportBtn.disabled = false;
+    }
+  });
+
+  const saveBtn = q('saveBtn');
+  const saveStatus = q('saveStatus');
+  saveBtn.addEventListener('click', async () => {
+    if (!doc.id) return;
+    saveBtn.disabled = true;
+    saveStatus.classList.remove('on', 'err');
+    try {
+      const res = await fetch(`/invoices/${doc.id}`, {
+        method:'PATCH', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify(doc),
+      });
+      if (!res.ok) throw new Error(res.statusText);
+      saveStatus.textContent = t('res.saved');
+      saveStatus.classList.add('on');
+    } catch (e) {
+      saveStatus.textContent = t('err.export', { msg: e.message });
+      saveStatus.classList.add('on', 'err');
+    } finally {
+      saveBtn.disabled = false;
+      setTimeout(() => saveStatus.classList.remove('on'), 3000);
+    }
+  });
+
+  return node;
 }
 
-exportBtn.addEventListener('click', async () => {
-  if (!lastResult) return;
-  exportBtn.disabled = true;
-  try {
-    const res = await fetch('/export-csv', {
-      method:'POST',
-      headers:{ 'Content-Type':'application/json' },
-      body: JSON.stringify(lastResult),
-    });
-    const blob = await res.blob();
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url; a.download = 'facture_extraite.csv'; a.click();
-    URL.revokeObjectURL(url);
-  } catch (e) {
-    showAlert('err.export', { msg: e.message });
-  } finally {
-    exportBtn.disabled = false;
-  }
-});
+function render(){
+  results.classList.add('on');
+
+  document.getElementById('resName').textContent = lastFile.name;
+  document.getElementById('resMeta').textContent = t('res.meta', {
+    size: new Intl.NumberFormat(I18N.locale).format(Math.round(lastFile.size / 1024)),
+    time: analysedAt.toLocaleTimeString(I18N.locale, { hour:'2-digit', minute:'2-digit' }),
+  });
+
+  docsNote.hidden = lastDocs.length <= 1;
+  if (lastDocs.length > 1) docsNote.textContent = t('res.multiDoc', { n: lastDocs.length });
+
+  docsList.innerHTML = '';
+  lastDocs.forEach((doc, i) => docsList.appendChild(buildDocCard(doc, i)));
+}
 
 resetBtn.addEventListener('click', () => {
-  lastResult = lastFile = null;
+  lastDocs = lastFile = null;
   results.classList.remove('on');
   hideAlert();
   scrollToEl(document.getElementById('demo'));
@@ -1085,7 +1262,7 @@ document.getElementById('year').textContent = new Date().getFullYear();
 addEventListener('isteps:lang', () => {
   makeFormatter();
   document.querySelectorAll('[data-count][data-done]').forEach(el => { el.textContent = el.dataset.count + statSuffix(el); });
-  if (lastResult && lastFile && results.classList.contains('on')) render(lastResult, lastFile);
+  if (lastDocs && lastFile && results.classList.contains('on')) render();
   if (lastAlert) showAlert(lastAlert.key, lastAlert.vars);
   // link widths change with the language
   requestAnimationFrame(() => movePill(activeLink()));

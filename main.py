@@ -18,14 +18,14 @@ import io
 import os
 import secrets
 
-from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse, PlainTextResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from google.api_core.exceptions import DeadlineExceeded, ResourceExhausted
 from starlette.middleware.base import BaseHTTPMiddleware
 
 import storage
-from extractor import extract_invoice_data
+from extractor import extract_invoice_documents
 
 app = FastAPI(title="iSteps Invoice Extraction Demo")
 storage.init_db()
@@ -80,10 +80,14 @@ async def root():
 
 
 @app.post("/extract")
-async def extract(file: UploadFile = File(...)):
+async def extract(file: UploadFile = File(...), client_id: int | None = Form(None)):
     """
     Accepts a single invoice file (PDF, PNG, JPG), returns extracted
-    structured fields as JSON.
+    structured fields as JSON. A multi-page PDF can yield more than one
+    invoice (a batch of scans, or one invoice whose lines span pages) —
+    the response is always {"documents": [...]}, one entry per invoice
+    found, each carrying the "id" it was saved under so the frontend can
+    PATCH corrections back to it later.
     """
     allowed_types = {"application/pdf", "image/png", "image/jpeg", "image/jpg"}
     if file.content_type not in allowed_types:
@@ -96,7 +100,7 @@ async def extract(file: UploadFile = File(...)):
     file_bytes = await file.read()
 
     try:
-        result = extract_invoice_data(file_bytes, file.content_type)
+        results = extract_invoice_documents(file_bytes, file.content_type)
     except ResourceExhausted as e:
         raise HTTPException(status_code=429, detail=f"Gemini quota exceeded: {e}")
     except DeadlineExceeded as e:
@@ -105,8 +109,48 @@ async def extract(file: UploadFile = File(...)):
         # TODO: replace with proper logging before any real client demo
         raise HTTPException(status_code=500, detail=f"Extraction failed: {e}")
 
-    storage.save_invoice(result, filename=file.filename)
-    return result
+    for result in results:
+        result["id"] = storage.save_invoice(result, filename=file.filename, client_id=client_id)
+
+    return {"documents": results}
+
+
+@app.patch("/invoices/{invoice_id}")
+async def update_invoice(invoice_id: int, payload: dict):
+    """
+    Saves accountant corrections made in the review UI back onto a
+    previously extracted invoice, and marks it reviewed.
+    """
+    updated = storage.update_invoice(invoice_id, payload)
+    if updated is None:
+        raise HTTPException(status_code=404, detail="Invoice not found")
+    return updated
+
+
+@app.post("/invoices/{invoice_id}/mark-reviewed")
+async def mark_invoice_reviewed(invoice_id: int):
+    if not storage.mark_reviewed(invoice_id):
+        raise HTTPException(status_code=404, detail="Invoice not found")
+    return {"ok": True}
+
+
+@app.get("/api/review-queue")
+async def review_queue(client_id: int | None = None):
+    return {"invoices": storage.get_review_queue(client_id)}
+
+
+@app.get("/clients")
+async def clients():
+    return {"clients": storage.list_clients()}
+
+
+@app.post("/clients")
+async def add_client(payload: dict):
+    name = (payload or {}).get("name")
+    client = storage.create_client(name)
+    if client is None:
+        raise HTTPException(status_code=400, detail="Client name is required")
+    return client
 
 
 @app.get("/dashboard")
@@ -115,8 +159,8 @@ async def dashboard():
 
 
 @app.get("/api/analytics")
-async def analytics(period: str = "12m"):
-    return storage.get_analytics(period)
+async def analytics(period: str = "12m", client_id: int | None = None):
+    return storage.get_analytics(period, client_id=client_id)
 
 
 @app.post("/export-csv")

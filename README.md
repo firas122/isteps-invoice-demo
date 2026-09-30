@@ -30,10 +30,10 @@ export CSV.
 
 ```
 isteps-invoice-demo/
-├── main.py                  FastAPI app: /extract, /export-csv, /dashboard, /api/analytics
-├── extractor.py             Gemini-vision call + prompt + JSON parsing + OCR fallback wiring
+├── main.py                  FastAPI app: /extract, /invoices/{id}, /clients, /export-csv, /dashboard, /api/analytics, /api/review-queue
+├── extractor.py             Gemini-vision call + prompt + JSON parsing + OCR fallback + multi-page PDF splitting
 ├── ocr_extractor.py         Local OCR fallback (Tesseract + regex), used when Gemini fails/quota
-├── storage.py               SQLite store + analytics aggregations
+├── storage.py               SQLite store (invoices + clients) + analytics aggregations
 ├── seed_demo_data.py        Optional fictional sample invoices for the dashboard
 ├── static/index.html        Landing page + upload UI, results, CSV export
 ├── static/dashboard.html    Spend analytics dashboard (charts, tables, anomalies)
@@ -93,9 +93,13 @@ http://127.0.0.1:8000/dashboard to see:
 - **VAT** — HT / TVA / TTC totals and TVA by rate (0 / 7 / 13 / 19 %, or "taux mixte" for blended invoices)
 - **Invoice volume** per month
 - **Anomalies** — invoices where HT + TVA + Timbre (fiscal stamp duty) ≠ TTC (tolerance 0.020 DT)
+- **Review queue** — low/medium-confidence extractions not yet checked by an accountant,
+  with a one-click "mark reviewed"; corrections saved from the upload page also clear an
+  invoice from this list (see "Client folders & review workflow" below)
 
-Period filter: 3 / 6 / 12 months or all. Every chart has a table view.
-Charts are plain SVG/HTML — no CDN, so the dashboard works offline in a meeting.
+Period and **client** filters: 3 / 6 / 12 months or all, and any client folder or all of
+them. Every chart has a table view. Charts are plain SVG/HTML — no CDN, so the dashboard
+works offline in a meeting.
 
 Sample data (optional, clearly flagged on the dashboard as fictional):
 
@@ -107,6 +111,34 @@ python seed_demo_data.py --clear  # remove them; real extractions are kept
 Moving to Supabase later: reimplement `save_invoice()` and `get_analytics()`
 in `storage.py`; the API and dashboard stay the same.
 
+## Client folders & review workflow
+
+An accounting firm works several clients at once, so invoices can be tagged to a
+**client folder** rather than dumped into one shared pool:
+
+- The upload page has a **Client** selector next to the dropzone (`GET/POST /clients`).
+  Pick an existing client or add a new one inline; the choice is remembered in the
+  browser for next time. Leaving it on "No client" behaves exactly like before.
+- A client folder is the accountant's own client (the company being invoiced *for*),
+  **not** the `fournisseur` field extracted from the invoice (the supplier who issued
+  it) — those are different things, so folders are never auto-created from scanned text.
+- The dashboard's **client filter** scopes every chart, KPI and the review queue to one
+  folder, or shows all of them combined.
+
+Every extracted field is **editable** on the results card (supplier, date, number,
+amounts, line items) and a **Save corrections** button writes the fix back to
+`invoices.db` via `PATCH /invoices/{id}`, which also marks the invoice reviewed. The
+dashboard's **review queue** lists everything still at medium/low confidence and not
+yet reviewed, with a one-click "mark reviewed" for extractions that were actually fine.
+
+A multi-page PDF can hold more than one invoice — either several scans stapled
+together, or one invoice whose line-item table spills onto a second page.
+`extract_invoice_documents()` in `extractor.py` renders each page separately, and
+folds pages back together when a page has no header fields of its own (a
+continuation) or repeats the same invoice number; the API always returns
+`{"documents": [...]}`, one entry per invoice found, and the results page renders one
+reviewable card per document.
+
 ## Recommended next steps (in Claude Code)
 
 1. **Test with real invoice samples.** Grab 3-5 actual invoices from your
@@ -116,19 +148,17 @@ in `storage.py`; the API and dashboard stay the same.
    Tunisian invoices sometimes have TVA at multiple rates (7%/13%/19%),
    or amounts written with commas instead of periods. Add few-shot
    examples to the prompt if accuracy is inconsistent.
-3. **Handle multi-page PDFs.** Current version sends the whole file as
-   one blob — fine for single-page invoices, but you'll want per-page
-   handling if clients send multi-page documents or batched PDFs.
-4. **Add basic validation**: flag when `montant_ht + montant_tva !=
+3. **Add basic validation**: flag when `montant_ht + montant_tva !=
    montant_ttc` (catches extraction errors automatically, and doubles as
    a trust-building feature to show clients — "it checks its own work").
-5. **Numeric field safety**: Gemini can return numbers as strings
+4. **Numeric field safety**: Gemini can return numbers as strings
    occasionally — coerce/validate before displaying or exporting.
 
 ## Before a real (paid) pilot — not needed for the demo itself
 
-- Add basic auth or restrict access (currently wide open — fine for a
-  local demo, not for anything deployed and shared with a client)
+- Basic auth is wired up (`BasicAuthMiddleware` in `main.py`, via `DEMO_USERNAME`/
+  `DEMO_PASSWORD`) but skipped entirely if either is unset — always set both before
+  sharing a deployed URL with a client.
 - Add logging of raw Gemini responses somewhere, so failed extractions
   are debuggable
 - Add retry/timeout handling around the Gemini call itself (there's now
@@ -137,12 +167,15 @@ in `storage.py`; the API and dashboard stay the same.
 - Decide on the **hybrid migration path**: this demo uses Gemini-vision
   for speed. If/when Sensible.so's structured extraction proves more
   accurate/reliable for a given doc type in production, swap the
-  implementation in `extractor.py` behind the same `extract_invoice_data()`
+  implementation in `extractor.py` behind the same `extract_invoice_documents()`
   interface — the FastAPI layer and frontend don't need to change.
 - Storage: extractions are persisted in local SQLite for the demo. A shared
   deployment needs a real database (Supabase, same as the Nova Assistant
-  stack) and per-client separation of data — the dashboard currently shows
-  every invoice in the database to anyone who can open it.
+  stack). Invoices are now tagged to a client folder and the dashboard/review
+  queue can filter by one (see "Client folders & review workflow" above), but
+  that's a UI filter, not access control — anyone who can open the dashboard
+  still sees every client's data. A real multi-client deployment needs actual
+  per-client access restriction, not just filtering.
 
 ## Notes
 

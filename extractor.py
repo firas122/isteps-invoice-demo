@@ -138,12 +138,87 @@ def extract_invoice_data(file_bytes: bytes, mime_type: str) -> dict:
         return result
 
 
+def _pdf_pages_as_png(file_bytes: bytes) -> list[bytes]:
+    import fitz  # PyMuPDF — already a dependency of ocr_extractor.py
+
+    pages = []
+    with fitz.open(stream=file_bytes, filetype="pdf") as doc:
+        for page in doc:
+            pages.append(page.get_pixmap(dpi=200).tobytes("png"))
+    return pages
+
+
+def _looks_like_continuation(prev: dict, cur: dict) -> bool:
+    """
+    Decides whether `cur` (extracted from the next page) is more of the
+    SAME invoice as `prev`, rather than a new one. Two batching patterns
+    show up in real scans: several distinct invoices stapled into one PDF
+    (each page has its own number/date), or one invoice whose line-item
+    table spills onto a second page (which usually has no header fields
+    of its own, just more rows).
+    """
+    prev_num = (prev.get("numero_facture") or "").strip()
+    cur_num = (cur.get("numero_facture") or "").strip()
+    if prev_num and cur_num:
+        return prev_num == cur_num
+
+    cur_date = (cur.get("date") or "").strip()
+    cur_supplier = (cur.get("fournisseur") or "").strip()
+    if cur_num or cur_date or cur_supplier:
+        # cur carries some header of its own — only fold it into prev if the
+        # supplier matches too (a repeated letterhead on a continuation page)
+        prev_supplier = (prev.get("fournisseur") or "").strip().lower()
+        return bool(prev_supplier) and prev_supplier == cur_supplier.lower()
+
+    # cur has no header fields at all — almost certainly just more line
+    # items continuing the previous page, not a distinct invoice
+    return True
+
+
+def _merge_continuation_pages(page_results: list[dict]) -> list[dict]:
+    merged: list[dict] = []
+    for result in page_results:
+        if merged and _looks_like_continuation(merged[-1], result):
+            head = merged[-1]
+            head["lignes"] = (head.get("lignes") or []) + (result.get("lignes") or [])
+            for field in ("montant_ht", "montant_tva", "montant_timbre", "montant_ttc", "numero_facture", "date"):
+                if not head.get(field) and result.get(field):
+                    head[field] = result[field]
+            if head.get("methode_extraction") != result.get("methode_extraction"):
+                head["methode_extraction"] = "mixed"
+        else:
+            merged.append(result)
+    return merged
+
+
+def extract_invoice_documents(file_bytes: bytes, mime_type: str) -> list[dict]:
+    """
+    Like extract_invoice_data(), but aware that a PDF can hold more than
+    one invoice: a batch of several documents scanned together, or a
+    single invoice whose line items spill onto a second page. Always
+    returns a list — one entry for the common single-invoice case, several
+    for a batched/multi-page one. Images (PNG/JPG) always yield one.
+    """
+    if mime_type != "application/pdf":
+        return [extract_invoice_data(file_bytes, mime_type)]
+
+    try:
+        pages = _pdf_pages_as_png(file_bytes)
+    except Exception:
+        pages = []
+
+    if len(pages) <= 1:
+        return [extract_invoice_data(file_bytes, mime_type)]
+
+    page_results = [extract_invoice_data(page, "image/png") for page in pages]
+    return _merge_continuation_pages(page_results)
+
+
 def _extract_with_gemini(file_bytes: bytes, mime_type: str) -> dict:
     """
     TODO before any real client pilot:
       - log raw model output somewhere for debugging misses
       - validate numeric fields (Gemini can return them as strings)
-      - handle multi-page PDFs (multiple invoices in one file)
     """
     model = genai.GenerativeModel(MODEL_NAME)
 

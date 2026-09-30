@@ -50,6 +50,17 @@ main{position:relative;z-index:1;max-width:var(--maxw);margin:0 auto;padding:cal
 .seg button{border:0;background:transparent;padding:6px 14px;border-radius:99px;font-size:.84rem;font-weight:500;color:var(--muted);cursor:pointer;transition:background .25s,color .25s;white-space:nowrap}
 .seg button:hover{color:var(--text)}
 .seg button[aria-pressed="true"]{background:var(--card);color:var(--text);box-shadow:inset 0 0 0 1px var(--line-2)}
+.filters select{
+  font:inherit;font-size:.84rem;color:var(--text);background:var(--input-bg);
+  border:1px solid var(--line-2);border-radius:99px;padding:7px 14px;
+}
+.filters select:focus{outline:none;border-color:rgba(var(--accent-rgb),.55)}
+.review-empty{display:flex;align-items:center;gap:9px;color:var(--ok-text);font-size:.87rem}
+.review-empty svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.review-btn{border:1px solid var(--line-2);background:var(--surface);color:var(--text);border-radius:99px;padding:6px 13px;font:inherit;font-size:.78rem;cursor:pointer;white-space:nowrap}
+.review-btn:hover{background:var(--surface-2)}
+.review-btn:disabled{opacity:.6;cursor:default}
+.review-err{color:var(--err-text);font-size:.78rem}
 .updated{margin-inline-start:auto;font-size:.8rem;color:var(--axis-text)}
 
 .notice{display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:var(--r);margin-bottom:18px;background:var(--info-bg);border:1px solid var(--info-line);font-size:.85rem;color:var(--info-text)}
@@ -201,6 +212,8 @@ th.num,td.num{text-align:end;font-variant-numeric:tabular-nums}
       <button type="button" data-period="12m" data-i18n="dash.p12">12 mois</button>
       <button type="button" data-period="all" data-i18n="dash.pall">Tout</button>
     </div>
+    <span class="filters-label" id="clientLabel" data-i18n="dash.client">Client</span>
+    <select id="clientFilter" aria-labelledby="clientLabel"></select>
     <span class="updated" id="updated" aria-live="polite"></span>
   </div>
 
@@ -323,6 +336,16 @@ th.num,td.num{text-align:end;font-variant-numeric:tabular-nums}
         </div>
       </div>
       <div id="anomalyBody"></div>
+    </section>
+
+    <section class="card span-2 fade-in" style="--i:9" id="reviewQueue">
+      <div class="card-head">
+        <div>
+          <h2 data-i18n="review.title">File de vérification</h2>
+          <p data-i18n="review.sub">Factures à confiance moyenne ou faible, pas encore vérifiées par un comptable.</p>
+        </div>
+      </div>
+      <div id="reviewBody"></div>
     </section>
   </div>
 </main>
@@ -596,7 +619,9 @@ function dataTable(container, columns, rows){
 const SERIES_COLORS = ['var(--s1)', 'var(--s2)', 'var(--s3)'];
 const OTHER_COLOR = 'var(--s-other)';
 
-const state = { period:'12m', data:null, animate:true, req:0, updatedAt:null };
+const state = { period:'12m', clientId:'', data:null, animate:true, req:0, updatedAt:null };
+const reviewState = { req:0, invoices:null };
+const CLIENT_STORAGE_KEY = 'isteps_client_id';
 
 const seriesName = s => s.key === '__other__' ? t('other.suppliers') : s.name;
 function seriesColor(d, key){
@@ -740,6 +765,64 @@ function renderAnomalies(d){
     ]));
 }
 
+function buildMarkReviewedButton(inv){
+  const btn = h('button', { type:'button', class:'review-btn', text:t('review.markReviewed') });
+  const errSpan = h('span', { class:'review-err' });
+  btn.addEventListener('click', async () => {
+    btn.disabled = true;
+    btn.textContent = t('review.marking');
+    errSpan.textContent = '';
+    try {
+      const res = await fetch(`/invoices/${inv.id}/mark-reviewed`, { method:'POST' });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      reviewState.invoices = reviewState.invoices.filter(x => x.id !== inv.id);
+      renderReview(reviewState.invoices);
+    } catch (e) {
+      btn.disabled = false;
+      btn.textContent = t('review.markReviewed');
+      errSpan.textContent = t('review.markError', { msg: e.message });
+    }
+  });
+  return h('span', {}, btn, errSpan);
+}
+
+function renderReview(invoices){
+  const body = $('reviewBody');
+  if (!invoices || !invoices.length) {
+    const row = h('div', { class:'review-empty' });
+    row.innerHTML = ICON.good;
+    row.append(h('span', { text:t('review.ok') }));
+    body.replaceChildren(row);
+    return;
+  }
+  dataTable(body,
+    [{ label:t('col.confidence') }, { label:t('col.supplier') }, { label:t('col.number') }, { label:t('col.date') },
+     { label:t('col.ttc'), num:true }, { label:t('col.action') }],
+    invoices.map(inv => [
+      statusEl('warning', t('conf.' + (inv.confiance || 'basse').toLowerCase()), 'td-status'),
+      inv.fournisseur || '—', inv.numero_facture || '—', F.date(inv.invoice_date),
+      inv.montant_ttc != null ? F.money3(inv.montant_ttc) : '—',
+      buildMarkReviewedButton(inv),
+    ]));
+}
+
+async function loadReviewQueue(){
+  const req = ++reviewState.req;
+  try {
+    const qs = state.clientId ? `?client_id=${encodeURIComponent(state.clientId)}` : '';
+    const res = await fetch(`/api/review-queue${qs}`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    if (req !== reviewState.req) return;
+    reviewState.invoices = data.invoices || [];
+    renderReview(reviewState.invoices);
+  } catch (e) {
+    if (req !== reviewState.req) return;
+    reviewState.invoices = [];
+    // the review queue is a bonus panel — a failed fetch here shouldn't break the rest of the dashboard
+  }
+}
+
 function renderCharts(){
   const d = state.data;
   if (!d || !d.kpis.count) return;
@@ -776,6 +859,27 @@ function render(){
   state.animate = false;
 }
 
+async function loadClientOptions(){
+  try {
+    const res = await fetch('/clients');
+    if (!res.ok) return;
+    const data = await res.json();
+    const sel = $('clientFilter');
+    sel.replaceChildren(
+      h('option', { value:'', text:t('dash.clientAll') }),
+      ...(data.clients || []).map(c => h('option', { value:String(c.id), text:c.name })),
+    );
+    if (state.clientId && [...sel.options].some(o => o.value === state.clientId)) sel.value = state.clientId;
+  } catch (e) { /* client filter is a convenience, not required for the demo to work */ }
+}
+
+$('clientFilter').addEventListener('change', () => {
+  state.clientId = $('clientFilter').value;
+  if (state.clientId) localStorage.setItem(CLIENT_STORAGE_KEY, state.clientId);
+  else localStorage.removeItem(CLIENT_STORAGE_KEY);
+  load(state.period);
+});
+
 let lastError = null;
 async function load(period){
   const req = ++state.req;
@@ -783,11 +887,16 @@ async function load(period){
   document.querySelectorAll('#periodSeg button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.period === period)));
   const url = new URL(location.href);
   url.searchParams.set('period', period);
+  if (state.clientId) url.searchParams.set('client_id', state.clientId);
+  else url.searchParams.delete('client_id');
   history.replaceState(null, '', url);
 
   $('dash').classList.add('loading');
+  loadReviewQueue();
   try {
-    const res = await fetch(`/api/analytics?period=${encodeURIComponent(period)}`);
+    const qs = new URLSearchParams({ period });
+    if (state.clientId) qs.set('client_id', state.clientId);
+    const res = await fetch(`/api/analytics?${qs}`);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
     if (req !== state.req) return;
@@ -838,10 +947,15 @@ addEventListener('isteps:lang', () => {
   hideTip();
   if (lastError) $('errorText').textContent = t('dash.loadError', { msg: lastError });
   if (state.data) render();
+  if (reviewState.invoices) renderReview(reviewState.invoices);
 });
 
-const initial = new URLSearchParams(location.search).get('period');
-load(['3m', '6m', '12m', 'all'].includes(initial) ? initial : '12m');
+const initialParams = new URLSearchParams(location.search);
+const initialPeriod = initialParams.get('period');
+state.clientId = initialParams.get('client_id') || localStorage.getItem(CLIENT_STORAGE_KEY) || '';
+loadClientOptions().then(() => {
+  load(['3m', '6m', '12m', 'all'].includes(initialPeriod) ? initialPeriod : '12m');
+});
 </script>
 </body>
 </html>

@@ -18,11 +18,18 @@ TOP_SUPPLIERS = 3
 VAT_RATES = (0, 7, 13, 19)
 
 SCHEMA = """
+CREATE TABLE IF NOT EXISTS clients (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    name       TEXT    NOT NULL,
+    name_key   TEXT    NOT NULL UNIQUE,
+    created_at TEXT    NOT NULL
+);
 CREATE TABLE IF NOT EXISTS invoices (
     id             INTEGER PRIMARY KEY AUTOINCREMENT,
     created_at     TEXT    NOT NULL,
     source         TEXT    NOT NULL DEFAULT 'upload',
     filename       TEXT,
+    client_id      INTEGER REFERENCES clients(id),
     fournisseur    TEXT,
     supplier_key   TEXT,
     invoice_date   TEXT,
@@ -33,7 +40,9 @@ CREATE TABLE IF NOT EXISTS invoices (
     montant_ttc    REAL,
     confiance      TEXT,
     lignes_json    TEXT,
-    raw_json       TEXT
+    raw_json       TEXT,
+    reviewed       INTEGER NOT NULL DEFAULT 0,
+    reviewed_at    TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_invoices_date ON invoices(invoice_date);
 """
@@ -48,10 +57,17 @@ def _connect():
 def init_db():
     with _connect() as conn:
         conn.executescript(SCHEMA)
-        # migrate DBs created before the "timbre fiscal" column existed
+        # migrate DBs created before these columns existed
         cols = {row["name"] for row in conn.execute("PRAGMA table_info(invoices)")}
         if "montant_timbre" not in cols:
             conn.execute("ALTER TABLE invoices ADD COLUMN montant_timbre REAL")
+        if "client_id" not in cols:
+            conn.execute("ALTER TABLE invoices ADD COLUMN client_id INTEGER REFERENCES clients(id)")
+        if "reviewed" not in cols:
+            conn.execute("ALTER TABLE invoices ADD COLUMN reviewed INTEGER NOT NULL DEFAULT 0")
+        if "reviewed_at" not in cols:
+            conn.execute("ALTER TABLE invoices ADD COLUMN reviewed_at TEXT")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_invoices_client ON invoices(client_id)")
 
 
 def to_number(value):
@@ -99,21 +115,22 @@ def supplier_key(name):
     return re.sub(r"\s+", " ", name).strip().upper() if name else None
 
 
-def save_invoice(data, filename=None, source="upload", created_at=None):
+def save_invoice(data, filename=None, source="upload", created_at=None, client_id=None):
     if not isinstance(data, dict):
         return None
     fournisseur = (data.get("fournisseur") or "").strip() or None
     lignes = data.get("lignes") if isinstance(data.get("lignes"), list) else []
     with _connect() as conn:
         cur = conn.execute(
-            """INSERT INTO invoices (created_at, source, filename, fournisseur, supplier_key,
+            """INSERT INTO invoices (created_at, source, filename, client_id, fournisseur, supplier_key,
                    invoice_date, numero_facture, montant_ht, montant_tva, montant_timbre, montant_ttc,
                    confiance, lignes_json, raw_json)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
                 created_at or datetime.now().isoformat(timespec="seconds"),
                 source,
                 filename,
+                client_id,
                 fournisseur,
                 supplier_key(fournisseur),
                 to_iso_date(data.get("date")),
@@ -130,9 +147,93 @@ def save_invoice(data, filename=None, source="upload", created_at=None):
         return cur.lastrowid
 
 
+def update_invoice(invoice_id, data):
+    """
+    Applies accountant corrections to a previously saved invoice (the
+    "edit and resave" review loop): re-derives the normalised columns the
+    same way save_invoice() does, and marks the row reviewed so it drops
+    out of the review queue. Returns the updated row as a dict, or None
+    if invoice_id doesn't exist.
+    """
+    if not isinstance(data, dict):
+        return None
+    fournisseur = (data.get("fournisseur") or "").strip() or None
+    lignes = data.get("lignes") if isinstance(data.get("lignes"), list) else []
+    with _connect() as conn:
+        cur = conn.execute(
+            """UPDATE invoices SET fournisseur=?, supplier_key=?, invoice_date=?, numero_facture=?,
+                   montant_ht=?, montant_tva=?, montant_timbre=?, montant_ttc=?, confiance=?,
+                   lignes_json=?, raw_json=?, reviewed=1, reviewed_at=?
+               WHERE id=?""",
+            (
+                fournisseur,
+                supplier_key(fournisseur),
+                to_iso_date(data.get("date")),
+                data.get("numero_facture"),
+                to_number(data.get("montant_ht")),
+                to_number(data.get("montant_tva")),
+                to_number(data.get("montant_timbre")),
+                to_number(data.get("montant_ttc")),
+                data.get("confiance"),
+                json.dumps(lignes, ensure_ascii=False),
+                json.dumps(data, ensure_ascii=False),
+                datetime.now().isoformat(timespec="seconds"),
+                invoice_id,
+            ),
+        )
+        if cur.rowcount == 0:
+            return None
+        return dict(conn.execute("SELECT * FROM invoices WHERE id=?", (invoice_id,)).fetchone())
+
+
+def mark_reviewed(invoice_id):
+    with _connect() as conn:
+        cur = conn.execute(
+            "UPDATE invoices SET reviewed=1, reviewed_at=? WHERE id=?",
+            (datetime.now().isoformat(timespec="seconds"), invoice_id),
+        )
+        return cur.rowcount > 0
+
+
+def get_review_queue(client_id=None):
+    """Invoices worth a human look: low/medium confidence and not yet reviewed."""
+    query = ("SELECT * FROM invoices WHERE reviewed = 0 AND confiance IN ('basse', 'moyenne')")
+    params = []
+    if client_id is not None:
+        query += " AND client_id = ?"
+        params.append(client_id)
+    query += " ORDER BY created_at DESC"
+    with _connect() as conn:
+        return [dict(r) for r in conn.execute(query, params)]
+
+
 def clear_demo_data():
     with _connect() as conn:
         return conn.execute("DELETE FROM invoices WHERE source = 'demo'").rowcount
+
+
+# ------------------------------------------------------------------- clients
+
+def list_clients():
+    with _connect() as conn:
+        return [dict(r) for r in conn.execute(
+            "SELECT * FROM clients ORDER BY name COLLATE NOCASE")]
+
+
+def create_client(name):
+    name = (name or "").strip()
+    if not name:
+        return None
+    key = supplier_key(name)
+    with _connect() as conn:
+        existing = conn.execute("SELECT * FROM clients WHERE name_key = ?", (key,)).fetchone()
+        if existing:
+            return dict(existing)
+        cur = conn.execute(
+            "INSERT INTO clients (name, name_key, created_at) VALUES (?, ?, ?)",
+            (name, key, datetime.now().isoformat(timespec="seconds")),
+        )
+        return dict(conn.execute("SELECT * FROM clients WHERE id=?", (cur.lastrowid,)).fetchone())
 
 
 # ---------------------------------------------------------------- analytics
@@ -181,14 +282,19 @@ def _is_anomaly(r):
     return abs(ht + tva + timbre - ttc) > ANOMALY_TOLERANCE
 
 
-def get_analytics(period="12m", today=None):
+def get_analytics(period="12m", today=None, client_id=None):
     today = today or date.today()
     months = PERIODS.get(period, 12)
 
+    query = f"SELECT *, {_EFFECTIVE_DATE} AS eff_date FROM invoices"
+    params = []
+    if client_id is not None:
+        query += " WHERE client_id = ?"
+        params.append(client_id)
+    query += " ORDER BY eff_date"
+
     with _connect() as conn:
-        all_rows = conn.execute(
-            f"SELECT *, {_EFFECTIVE_DATE} AS eff_date FROM invoices ORDER BY eff_date"
-        ).fetchall()
+        all_rows = conn.execute(query, params).fetchall()
 
     # colour identity is fixed on all-time ranking so a period filter never repaints a supplier
     all_time, names = {}, {}
