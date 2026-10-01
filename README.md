@@ -169,7 +169,7 @@ A couple of things extraction now does automatically:
 `POST /admin/reset` wipes every invoice, client, and stored original file —
 for a clean slate before a client walkthrough or a screen recording. It's
 refused (403) unless `ADMIN_RESET_TOKEN` is set on the server, and even then
-requires that exact token, so it's a separate secret from `DEMO_PASSWORD`:
+requires that exact token.
 
 ```bash
 # set ADMIN_RESET_TOKEN in your .env (local) or Railway env vars (hosted)
@@ -211,10 +211,9 @@ warning, file retrieval, and the CSV's Excel-compatible UTF-8 BOM.
 
 ## Before a real (paid) pilot — not needed for the demo itself
 
-- Basic auth is wired up (`BasicAuthMiddleware` in `main.py`, via `DEMO_USERNAME`/
-  `DEMO_PASSWORD`) but skipped entirely if either is unset — always set both before
-  sharing a deployed URL with a client. It's also a single shared password for
-  everyone — a real pilot with multiple accountants needs individual logins.
+- No authentication — the demo currently has no login at all, so the
+  deployed URL is wide open. Add it back (and move to individual logins
+  per accountant) before sharing a deployed URL with a real client.
 - Add logging of raw Gemini responses somewhere, so failed extractions
   are debuggable
 - Add retry/timeout handling around the Gemini call itself (there's now
