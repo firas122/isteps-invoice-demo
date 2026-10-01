@@ -24,3 +24,6 @@ __pycache__/
 
 # IDE
 .idea/
+
+# Local project log, never published
+PROJECT_HISTORY.md
